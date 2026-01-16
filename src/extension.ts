@@ -858,6 +858,9 @@ function enforceConventionalCommit(
     config.get("commitFormat.language", "zh-CN")
   );
 
+  // 从配置中获取模板
+  let template = config.get<string>("commitTemplate", "");
+
   // 语言归一化
   function normalizeLanguage(lang: string | undefined): string {
     if (!lang) {
@@ -1006,7 +1009,17 @@ function enforceConventionalCommit(
 
   const message = finalHeader + (enableBody && body ? `\n\n${body}` : "");
 
-  return formatCommitMessageWithTemplate(message);
+  if (!template) {
+    return message;
+  }
+
+  const finalLines = message.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (finalLines.length > 0) {
+    template = template.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+  }
+
+  // 替换模板中的 {message} 占位符
+  return template.replace(/{message}/g, message).replace(/{header}/g, finalHeader).replace(/{body}/g, body);
 }
 
 async function generateCommitMessage(changes: string): Promise<string | null> {
@@ -1367,24 +1380,6 @@ async function handleError(context: string, error: any) {
       vscode.Uri.parse("https://github.com/jianxiaofei/AI-message/issues")
     );
   }
-}
-
-function formatCommitMessageWithTemplate(rawMessage: string): string {
-  // 从配置中获取模板
-  let template = vscode.workspace
-    .getConfiguration("aiMessage")
-    .get<string>("commitTemplate", "");
-  if (!template) {
-    return rawMessage;
-  }
-
-  const lines = rawMessage.split(/\r?\n/).filter((l) => l.trim().length > 0);
-  if (lines.length > 0) {
-    template = template.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
-  }
-
-  // 替换模板中的 {message} 占位符
-  return template.replace(/{message}/g, rawMessage);
 }
 
 export function deactivate() {
