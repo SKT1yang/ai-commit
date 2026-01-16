@@ -18,6 +18,11 @@ export class GitService implements IVersionControlService {
         console.log('GitService 初始化: 使用的 git 可执行文件 =', this.gitPath);
     }
 
+    /**
+     * 解析并返回当前 VS Code 工作区的根目录路径。
+     * 优先使用当前活动编辑器文件所在的工作区文件夹，否则返回第一个工作区文件夹的路径。
+     * 如果没有打开任何工作区则返回空字符串。
+     */
     private resolveWorkspaceRoot(): string {
         const folders = vscode.workspace.workspaceFolders;
         if (!folders || folders.length === 0) {
@@ -33,6 +38,11 @@ export class GitService implements IVersionControlService {
         return folders[0].uri.fsPath;
     }
     
+    /**
+     * 尝试解析可用的 `git` 可执行文件路径。
+     * 优先使用扩展配置 `aiMessage.git.path`，其次检查常见安装路径（包括 Homebrew 路径），
+     * 最后回退到系统 PATH 中的 `git`。
+     */
     private resolveGitPath(): string {
         // 允许用户在设置中指定 git 可执行文件路径
         const cfg = vscode.workspace.getConfiguration('aiMessage');
@@ -71,6 +81,11 @@ export class GitService implements IVersionControlService {
         return 'git';
     }
 
+    /**
+     * 检查 `workspaceRoot` 是否为一个 Git 仓库。
+     * 使用 `git rev-parse --is-inside-work-tree` 命令检测。
+     * 返回一个布尔值，表示当前目录是否在 Git 工作树中。
+     */
     async isInRepository(): Promise<boolean> {
         if (!this.workspaceRoot) {
             console.log('Git检测: 没有工作区');
@@ -90,6 +105,10 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 获取仓库当前状态（未暂存/暂存/未跟踪等），并解析为 `VcsStatus`。
+     * 如果不在仓库中或命令出错，返回 isRepository=false 的默认结构。
+     */
     async getStatus(): Promise<VcsStatus> {
         if (!await this.isInRepository()) {
             return {
@@ -123,6 +142,10 @@ export class GitService implements IVersionControlService {
 
     /**
      * 获取VS Code Source Control中的变更（不包括ignore-on-commit的文件）
+     */
+    /**
+     * 获取 VS Code Source Control 中显示的变更（会过滤掉 ignore-on-commit 模式的文件）。
+     * 返回 `VcsStatus` 格式，包含经过过滤的变更文件列表。
      */
     async getSourceControlChanges(): Promise<VcsStatus> {
         if (!await this.isInRepository()) {
@@ -159,6 +182,11 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 根据 ignore-on-commit 模式（来自 VS Code 设置或 .gitignore）过滤文件列表。
+     * 支持简单的 glob 模式（`*` 和 `**`）。
+     * 返回经过过滤的 `VcsFile[]`。
+     */
     private async filterIgnoreOnCommitFiles(allFiles: VcsFile[]): Promise<VcsFile[]> {
         if (!allFiles.length) {
             return [];
@@ -204,6 +232,10 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 从 VS Code 的 `git.ignoreOnCommit` 设置和仓库根目录下的 `.gitignore` 文件中加载忽略模式。
+     * 返回去重后的模式数组。
+     */
     private async loadIgnorePatterns(): Promise<string[]> {
         const patterns: string[] = [];
 
@@ -236,6 +268,9 @@ export class GitService implements IVersionControlService {
         return [...new Set(patterns)]; // 去重
     }
 
+    /**
+     * 获取“准备提交”的变更：优先返回暂存区的文件，如果暂存区为空则返回工作区变更（已过滤 ignore-on-commit）。
+     */
     async getCommitReadyChanges(): Promise<VcsStatus> {
         // 对于Git，获取暂存区的文件（准备提交的文件）
         // 如果暂存区为空，则获取工作区变更但排除忽略的文件
@@ -253,6 +288,10 @@ export class GitService implements IVersionControlService {
 
     /**
      * 获取暂存区的变更（已经准备提交的文件）
+     */
+    /**
+     * 获取暂存区（index）中的变更文件，并解析为 `VcsStatus`。
+     * 使用 `git diff --cached --name-status` 获取文件及其状态。
      */
     private async getStagedChanges(): Promise<VcsStatus> {
         if (!await this.isInRepository()) {
@@ -286,6 +325,12 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 获取指定文件或整个仓库相对于 HEAD 的 diff 文本。
+     * - 如果传入 `filePath`，则仅返回该文件的 diff；
+     * - 否则返回所有变更的 diff。
+     * 返回 diff 字符串，若不在仓库中则抛出错误。
+     */
     async getDiff(filePath?: string): Promise<string> {
         if (!await this.isInRepository()) {
             throw new Error('当前目录不是Git仓库');
@@ -309,6 +354,10 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 解析 `git status --porcelain` 的输出为 `VcsFile[]`。
+     * 每行以两字符状态码开头，后跟文件路径。
+     */
     private parseGitStatus(statusOutput: string): VcsFile[] {
         if (!statusOutput.trim()) {
             return [];
@@ -334,6 +383,9 @@ export class GitService implements IVersionControlService {
         return files;
     }
 
+    /**
+     * 将 `git status --porcelain` 的两字符状态码翻译为更友好的字符串描述。
+     */
     private translateGitStatus(status: string): string {
         // Git状态码到描述的映射
         const statusMap: { [key: string]: string } = {
@@ -355,6 +407,10 @@ export class GitService implements IVersionControlService {
         return statusMap[status] || `unknown(${status})`;
     }
 
+    /**
+     * 执行给定的 git 命令并以 UTF-8 编码返回结果。
+     * 该方法用于需要更大 buffer 或明确编码的场景。
+     */
     private async execWithEncoding(command: string): Promise<{ stdout: string }> {
         try {
             console.log('执行Git命令:', command);
@@ -370,6 +426,10 @@ export class GitService implements IVersionControlService {
         }
     }
 
+    /**
+     * 解析 `git diff --cached --name-status` 的输出为 `VcsFile[]`。
+     * 输出每行以状态码开头，使用制表符分隔状态码和路径。
+     */
     private parseStagedStatus(statusOutput: string): VcsFile[] {
         if (!statusOutput.trim()) {
             return [];
@@ -396,6 +456,9 @@ export class GitService implements IVersionControlService {
         return files;
     }
 
+    /**
+     * 将 `git diff --cached --name-status` 返回的单字符状态码翻译为描述字符串。
+     */
     private translateStagedStatus(status: string): string {
         // Git diff --cached 状态码映射
         const statusMap: { [key: string]: string } = {
