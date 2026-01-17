@@ -78,13 +78,14 @@
 ### 项目结构
 ```
 src/
-├── extension.ts        # 主扩展入口
-├── aiService.ts       # AI 服务，Copilot 集成
-├── svnService.ts      # SVN 操作服务
-├── gitService.ts      # Git 操作服务
-├── vcsFactory.ts      # VCS 工厂类
-├── vcsInterface.ts    # VCS 接口定义
-└── test/             # 测试文件
+├── extension.ts              # 主扩展入口
+├── aiProviderFactory.ts      # AI 提供商工厂
+├── svnService.ts             # SVN 操作服务
+├── gitService.ts             # Git 操作服务
+├── vcsFactory.ts             # VCS 工厂类
+├── vcsInterface.ts           # VCS 接口定义
+├── providers/                # AI 提供商实现
+└── test/                     # 测试文件
 ```
 
 ### 测试

@@ -30,7 +30,9 @@ This is a VS Code extension that generates SVN commit messages using AI, similar
 ## 架构说明
 - `src/extension.ts` - 主扩展入口，命令注册和用户交互
 - `src/svnService.ts` - SVN操作服务，处理仓库检测和差异获取
-- `src/aiService.ts` - Copilot集成服务，使用VS Code Language Model API
+- `src/gitService.ts` - Git操作服务，处理Git仓库检测和差异获取
+- `src/aiProviderFactory.ts` - AI提供商工厂，支持多个AI提供商集成
+- `src/providers/` - 各个AI提供商实现（Copilot、Ollama、千问等）
 - `package.json` - 扩展配置，命令定义和简化的设置架构
 
 ## 使用方法

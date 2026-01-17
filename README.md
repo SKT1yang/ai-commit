@@ -422,12 +422,14 @@ npm run compile
 
 ```
 ├── src/
-│   ├── extension.ts      # 主扩展入口
-│   ├── svnService.ts     # SVN操作服务
-│   ├── aiService.ts      # AI集成服务
-│   └── test/             # 测试文件
-├── package.json          # 扩展配置
-└── README.md            # 项目文档
+│   ├── extension.ts              # 主扩展入口
+│   ├── aiProviderFactory.ts      # AI提供商工厂
+│   ├── svnService.ts             # SVN操作服务
+│   ├── gitService.ts             # Git操作服务
+│   ├── providers/                # AI提供商实现
+│   └── test/                     # 测试文件
+├── package.json                  # 扩展配置
+└── README.md                     # 项目文档
 ```
 
 ## 许可证

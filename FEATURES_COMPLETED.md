@@ -51,11 +51,11 @@
 
 ### 核心文件更新
 
-#### `src/aiService.ts`
-- ✅ 添加emoji映射和自动插入逻辑
-- ✅ 增强prompt工程，包含专业7维分析
-- ✅ 智能提取算法，支持emoji和摘要行
-- ✅ 多模型后备支持
+#### `src/aiProviderFactory.ts`
+- ✅ 多AI提供商支持（Copilot、Ollama、千问等）
+- ✅ 提供商工厂模式和动态切换
+- ✅ 配置管理和模型选择
+- ✅ 智能提取和提交信息生成
 
 #### `src/svnService.ts`
 - ✅ 新增 `getCommitReadyChanges()` 方法
