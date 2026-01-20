@@ -13,13 +13,13 @@ export class QianwenProvider extends BaseProvider {
         return !!this.config?.qianwenApiKey;
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         if (!this.config?.qianwenApiKey) {
             throw new Error('请配置通义千问API Key');
         }
 
         const model = this.config?.qianwenModel || 'qwen-plus';
-        const prompt = this.buildBasePrompt(diff, changedFiles);
+        const prompt = this.buildBasePrompt(diff, changedFiles, zendaoPrompt);
         
         try {
             const response = await this.fetchWithTimeout('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {

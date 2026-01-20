@@ -52,8 +52,8 @@
         "title": "生成提交信息",
         "category": "AI Message",
         "icon": {
-          "dark": "./images/ai-icon-dark.svg",
-          "light": "./images/ai-icon-light.svg"
+          "dark": "./images/git.svg",
+          "light": "./images/git.svg"
         }
       },
       {
@@ -67,6 +67,15 @@
         "title": "配置 AI 设置",
         "category": "AI Message",
         "icon": "$(settings-gear)"
+      },
+      {
+        "command": "ai-message.generateZendaoCommitMessage",
+        "title": "根据禅道生成提交信息",
+        "category": "AI Message",
+        "icon": {
+          "dark": "./images/zendao.svg",
+          "light": "./images/zendao.svg"
+        }
       }
     ],
     "menus": {
@@ -74,11 +83,21 @@
         {
           "command": "ai-message.generateCommitMessage",
           "group": "z_ai_message"
+        },
+        {
+          "command": "ai-message.generateZendaoCommitMessage",
+          "when": "scmProvider && config.aiMessage.zendao.host != '' && config.aiMessage.zendao.account != '' && config.aiMessage.zendao.password != ''",
+          "group": "z_ai_message"
         }
       ],
       "editor/context": [
         {
           "command": "ai-message.generateCommitMessage",
+          "group": "z_ai_message"
+        },
+        {
+          "command": "ai-message.generateZendaoCommitMessage",
+          "when": "scmProvider && config.aiMessage.zendao.host != '' && config.aiMessage.zendao.account != '' && config.aiMessage.zendao.password != ''",
           "group": "z_ai_message"
         }
       ],
@@ -87,6 +106,11 @@
           "command": "ai-message.generateCommitMessage",
           "when": "scmProvider",
           "group": "navigation@1"
+        },
+        {
+          "command": "ai-message.generateZendaoCommitMessage",
+          "when": "scmProvider && config.aiMessage.zendao.host != '' && config.aiMessage.zendao.account != '' && config.aiMessage.zendao.password != ''",
+          "group": "navigation@2"
         }
       ],
       "scm/resourceState/context": [
@@ -94,6 +118,11 @@
           "command": "ai-message.generateCommitMessage",
           "group": "1_modification",
           "when": "scmProvider"
+        },
+        {
+          "command": "ai-message.generateZendaoCommitMessage",
+          "group": "1_modification",
+          "when": "scmProvider && config.aiMessage.zendao.host != '' && config.aiMessage.zendao.account != '' && config.aiMessage.zendao.password != ''"
         }
       ]
     },
@@ -313,6 +342,24 @@
           "default": true,
           "description": "启用body质量检查（长度检查、重复内容检查、格式标准化）",
           "order": 26
+        },
+        "aiMessage.zendao.host": {
+          "type": "string",
+          "default": "",
+          "description": "可选：自定义禅道 主机地址（例如 192.168.100.80）",
+          "order": 27
+        },
+        "aiMessage.zendao.account": {
+          "type": "string",
+          "default": "",
+          "description": "可选：自定义禅道 账号（例如 admin）",
+          "order": 28
+        },
+        "aiMessage.zendao.password": {
+          "type": "string",
+          "default": "",
+          "description": "可选：自定义禅道 密码（例如 123456）",
+          "order": 29
         }
       }
     }

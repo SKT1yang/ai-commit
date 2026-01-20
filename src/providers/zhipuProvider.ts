@@ -13,13 +13,13 @@ export class ZhipuProvider extends BaseProvider {
         return !!this.config?.zhipuApiKey;
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         if (!this.config?.zhipuApiKey) {
             throw new Error('请配置智谱AI API Key');
         }
 
         const model = this.config?.zhipuModel || 'glm-4';
-        const prompt = this.buildBasePrompt(diff, changedFiles);
+        const prompt = this.buildBasePrompt(diff, changedFiles, zendaoPrompt);
         
         try {
             const response = await this.fetchWithTimeout('https://open.bigmodel.cn/api/paas/v4/chat/completions', {

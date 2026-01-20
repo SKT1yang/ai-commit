@@ -22,11 +22,11 @@ export class OllamaProvider extends BaseProvider {
         }
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         const endpoint = this.config?.ollamaEndpoint || 'http://localhost:11434';
         const model = this.config?.ollamaModel || 'qwen2.5:7b';
         
-        const prompt = this.buildBasePrompt(diff, changedFiles);
+        const prompt = this.buildBasePrompt(diff, changedFiles, zendaoPrompt);
         
         try {
             const response = await this.fetchWithTimeout(`${endpoint}/api/generate`, {

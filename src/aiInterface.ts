@@ -3,7 +3,7 @@ import { SvnFile } from './svnService';
 export interface AIProvider {
     readonly name: string;
     isAvailable(): Promise<boolean>;
-    generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string>;
+    generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string>;
 }
 
 export interface AIConfig {

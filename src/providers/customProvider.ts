@@ -13,7 +13,7 @@ export class CustomProvider extends BaseProvider {
         return !!(this.config?.customEndpoint && this.config?.customApiKey);
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         if (!this.config?.customEndpoint) {
             throw new Error('请配置自定义API接口地址');
         }

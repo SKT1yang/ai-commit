@@ -1,26 +1,34 @@
-import { AIProvider, AIConfig } from '../aiInterface';
-import { SvnFile } from '../svnService';
+import { AIProvider, AIConfig } from "../aiInterface";
+import { SvnFile } from "../svnService";
 
 export abstract class BaseProvider implements AIProvider {
-    abstract readonly name: string;
-    protected config?: AIConfig;
+  abstract readonly name: string;
+  protected config?: AIConfig;
 
-    constructor(config?: AIConfig) {
-        this.config = config;
-    }
+  constructor(config?: AIConfig) {
+    this.config = config;
+  }
 
-    abstract isAvailable(): Promise<boolean>;
-    abstract generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string>;
+  abstract isAvailable(): Promise<boolean>;
+  abstract generateCommitMessage(
+    diff: string,
+    changedFiles: SvnFile[],
+    zendaoPrompt?: string,
+  ): Promise<string>;
 
-    /**
-     * 构建基础提示词的公共部分
-     */
-    protected buildBasePrompt(diff: string, changedFiles: SvnFile[]): string {
-        const filesDescription = changedFiles.map(file => 
-            `${file.path} (${this.getStatusDescription(file.status)})`
-        ).join('\n');
+  /**
+   * 构建基础提示词的公共部分
+   */
+  protected buildBasePrompt(
+    diff: string,
+    changedFiles: SvnFile[],
+    zendaoPrompt?: string,
+  ): string {
+    const filesDescription = changedFiles
+      .map((file) => `${file.path} (${this.getStatusDescription(file.status)})`)
+      .join("\n");
 
-        return `# SVN Commit Message Guide
+    return `# SVN Commit Message Guide
 
 **CRITICAL INSTRUCTION: YOU MUST FOLLOW THESE EXACT REQUIREMENTS**
 1. OUTPUT ONLY THE COMMIT MESSAGE IN 简体中文
@@ -142,227 +150,253 @@ ${filesDescription}
 ${diff}
 \`\`\`
 
+${zendaoPrompt ? zendaoPrompt : ""}
+
 ---
 REMINDER:
 - Now generate commit messages that describe the CODE CHANGES.
 - ONLY return commit messages, NO OTHER PROSE!
 - Follow the exact format shown in examples above.`;
+  }
+
+  /**
+   * 提取和清理AI响应的提交信息
+   */
+  protected extractCommitMessage(response: string): string {
+    // 清理响应 - 移除引号和多余空格
+    let cleaned = response.trim().replace(/^["']|["']$/g, "");
+
+    // 移除markdown代码块标记
+    cleaned = cleaned.replace(/^```[\s\S]*?\n/, "").replace(/\n```$/, "");
+    cleaned = cleaned.replace(/^```/, "").replace(/```$/, "");
+
+    // 移除其他常见的格式标记
+    cleaned = cleaned.replace(/^`/, "").replace(/`$/, "");
+
+    // 移除解释性前缀文本，保留实际的提交信息
+    cleaned = cleaned.replace(
+      /^.*?(?=✨|🐛|📝|💄|♻️|⚡|✅|📦|👷|🔧|🌐|feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)/s,
+      "",
+    );
+
+    // 按行分割并过滤空行
+    const lines = cleaned
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line);
+
+    if (lines.length === 0) {
+      return "✨ feat(misc): 更新代码";
     }
 
-    /**
-     * 提取和清理AI响应的提交信息
-     */
-    protected extractCommitMessage(response: string): string {
-        // 清理响应 - 移除引号和多余空格
-        let cleaned = response.trim().replace(/^["']|["']$/g, '');
-        
-        // 移除markdown代码块标记
-        cleaned = cleaned.replace(/^```[\s\S]*?\n/, '').replace(/\n```$/, '');
-        cleaned = cleaned.replace(/^```/, '').replace(/```$/, '');
-        
-        // 移除其他常见的格式标记
-        cleaned = cleaned.replace(/^`/, '').replace(/`$/, '');
-        
-        // 移除解释性前缀文本，保留实际的提交信息
-        cleaned = cleaned.replace(/^.*?(?=✨|🐛|📝|💄|♻️|⚡|✅|📦|👷|🔧|🌐|feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)/s, '');
-        
-        // 按行分割并过滤空行
-        const lines = cleaned.split('\n').map(line => line.trim()).filter(line => line);
-        
-        if (lines.length === 0) {
-            return '✨ feat(misc): 更新代码';
-        }
-        
-        // 移除解释性文本和标题，但保留提交信息和body内容
-        const filteredLines = lines.filter(line => {
-            const lower = line.toLowerCase();
-            return !lower.includes('提交信息') && 
-                   !lower.includes('生成') &&
-                   !lower.includes('基于') &&
-                   !lower.includes('分析') &&
-                   !lower.includes('示例') &&
-                   !lower.includes('example') &&
-                   !lower.includes('输出') &&
-                   !lower.includes('格式') &&
-                   !lower.includes('以下是') &&
-                   !lower.includes('根据') &&
-                   !line.startsWith('#') &&
-                   !line.startsWith('**') &&
-                   !line.startsWith('*') &&
-                   !line.startsWith('Note:') &&
-                   !line.startsWith('注:') &&
-                   line.length > 0;
-        });
-        
-        if (filteredLines.length === 0) {
-            return '✨ feat(misc): 更新代码';
-        }
-        
-        const processedLines: string[] = [];
-        
-        for (const line of filteredLines) {
-            // 检查是否为有效的提交信息行（包含emoji或type）
-            if (this.isValidCommitLine(line)) {
-                // 确保有正确的emoji
-                const processedLine = this.ensureCorrectEmoji(line);
-                processedLines.push(processedLine);
-            } else if (this.isBodyContent(line)) {
-                // 这是body内容
-                processedLines.push(this.formatBodyLine(line));
-            }
-        }
-        
-        // 如果没有有效的提交行，创建默认的
-        if (processedLines.length === 0 || !processedLines.some(line => this.isValidCommitLine(line))) {
-            return '✨ feat(misc): 更新代码';
-        }
-        
-        return processedLines.join('\n').trim();
+    // 移除解释性文本和标题，但保留提交信息和body内容
+    const filteredLines = lines.filter((line) => {
+      const lower = line.toLowerCase();
+      return (
+        !lower.includes("提交信息") &&
+        !lower.includes("生成") &&
+        !lower.includes("基于") &&
+        !lower.includes("分析") &&
+        !lower.includes("示例") &&
+        !lower.includes("example") &&
+        !lower.includes("输出") &&
+        !lower.includes("格式") &&
+        !lower.includes("以下是") &&
+        !lower.includes("根据") &&
+        !line.startsWith("#") &&
+        !line.startsWith("**") &&
+        !line.startsWith("*") &&
+        !line.startsWith("Note:") &&
+        !line.startsWith("注:") &&
+        line.length > 0
+      );
+    });
+
+    if (filteredLines.length === 0) {
+      return "✨ feat(misc): 更新代码";
     }
 
-    /**
-     * 检查是否为有效的提交信息行
-     */
-    private isValidCommitLine(line: string): boolean {
-        // 检查是否包含emoji开头或者直接以type开头
-        const emojiPattern = /^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/;
-        const typePattern = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)(\([^)]*\))?:/;
-        
-        return emojiPattern.test(line) || typePattern.test(line);
+    const processedLines: string[] = [];
+
+    for (const line of filteredLines) {
+      // 检查是否为有效的提交信息行（包含emoji或type）
+      if (this.isValidCommitLine(line)) {
+        // 确保有正确的emoji
+        const processedLine = this.ensureCorrectEmoji(line);
+        processedLines.push(processedLine);
+      } else if (this.isBodyContent(line)) {
+        // 这是body内容
+        processedLines.push(this.formatBodyLine(line));
+      }
     }
 
-    /**
-     * 检查是否为body内容
-     */
-    private isBodyContent(line: string): boolean {
-        // body内容通常以-开头或者包含【】标记，或者是较长的描述性文本
-        return line.startsWith('-') || 
-               line.startsWith('•') || 
-               line.startsWith('*') || 
-               line.includes('【') || 
-               line.includes('】') ||
-               (!this.isValidCommitLine(line) && line.length > 10 && !this.isDescriptiveSummary(line));
+    // 如果没有有效的提交行，创建默认的
+    if (
+      processedLines.length === 0 ||
+      !processedLines.some((line) => this.isValidCommitLine(line))
+    ) {
+      return "✨ feat(misc): 更新代码";
     }
 
-    /**
-     * 格式化body行
-     */
-    private formatBodyLine(line: string): string {
-        // 统一使用-作为项目符号
-        return line.replace(/^[•*]\s*/, '- ');
+    return processedLines.join("\n").trim();
+  }
+
+  /**
+   * 检查是否为有效的提交信息行
+   */
+  private isValidCommitLine(line: string): boolean {
+    // 检查是否包含emoji开头或者直接以type开头
+    const emojiPattern = /^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/;
+    const typePattern =
+      /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)(\([^)]*\))?:/;
+
+    return emojiPattern.test(line) || typePattern.test(line);
+  }
+
+  /**
+   * 检查是否为body内容
+   */
+  private isBodyContent(line: string): boolean {
+    // body内容通常以-开头或者包含【】标记，或者是较长的描述性文本
+    return (
+      line.startsWith("-") ||
+      line.startsWith("•") ||
+      line.startsWith("*") ||
+      line.includes("【") ||
+      line.includes("】") ||
+      (!this.isValidCommitLine(line) &&
+        line.length > 10 &&
+        !this.isDescriptiveSummary(line))
+    );
+  }
+
+  /**
+   * 格式化body行
+   */
+  private formatBodyLine(line: string): string {
+    // 统一使用-作为项目符号
+    return line.replace(/^[•*]\s*/, "- ");
+  }
+
+  /**
+   * 确保提交信息有正确的emoji
+   */
+  private ensureCorrectEmoji(line: string): string {
+    // 如果已经有emoji，直接返回
+    if (line.match(/^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/)) {
+      return line;
     }
 
-    /**
-     * 确保提交信息有正确的emoji
-     */
-    private ensureCorrectEmoji(line: string): string {
-        // 如果已经有emoji，直接返回
-        if (line.match(/^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/)) {
-            return line;
-        }
-        
-        // 提取commit type并添加对应的emoji
-        const typeMatch = line.match(/^(\w+)(?:\([^)]*\))?:/);
-        if (typeMatch) {
-            const type = typeMatch[1];
-            const emoji = this.getEmojiForType(type);
-            return `${emoji} ${line}`;
-        }
-        
-        return line;
+    // 提取commit type并添加对应的emoji
+    const typeMatch = line.match(/^(\w+)(?:\([^)]*\))?:/);
+    if (typeMatch) {
+      const type = typeMatch[1];
+      const emoji = this.getEmojiForType(type);
+      return `${emoji} ${line}`;
     }
 
-    /**
-     * 识别总结性描述行（应该被过滤掉）
-     */
-    private isDescriptiveSummary(line: string): boolean {
-        const lower = line.toLowerCase();
-        return lower.includes('本次提交') ||
-               lower.includes('此次提交') || 
-               lower.includes('本次更新') ||
-               lower.includes('此次更新') ||
-               lower.includes('包含') ||
-               lower.includes('涉及') ||
-               lower.includes('总结') ||
-               lower.includes('概述') ||
-               (lower.length > 30 && !line.includes(':') && !line.startsWith('-'));
-    }
-    
-    /**
-     * 从提交行中提取提交类型
-     */
-    private getCommitType(line: string): string {
-        const match = line.match(/^(?:[✨🐛📝💄♻️⚡✅📦👷🔧🌐]\s+)?(\w+)(?:\([^)]*\))?:/);
-        return match ? match[1] : '';
-    }
-    
-    /**
-     * 根据提交类型获取对应的emoji
-     */
-    private getEmojiForType(type: string): string {
-        const emojiMap: { [key: string]: string } = {
-            'feat': '✨',
-            'fix': '🐛', 
-            'docs': '📝',
-            'style': '💄',
-            'refactor': '♻️',
-            'perf': '⚡',
-            'test': '✅',
-            'build': '📦',
-            'ci': '👷',
-            'chore': '🔧',
-            'i18n': '🌐'
-        };
-        return emojiMap[type] || '✨';
-    }
-    
-    /**
-     * 获取文件状态的中文描述
-     */
-    protected getStatusDescription(status: string): string {
-        const statusMap: { [key: string]: string } = {
-            'M': '修改',
-            'A': '新增',
-            'D': '删除',
-            'R': '重命名',
-            'C': '复制',
-            '?': '未跟踪',
-            '!': '缺失'
-        };
-        return statusMap[status] || status;
-    }
+    return line;
+  }
 
-    /**
-     * 处理API错误的统一方法
-     */
-    protected handleApiError(error: any, providerName: string): never {
-        console.error(`${providerName} API调用失败:`, error);
-        if (error instanceof Error) {
-            if (error.name === 'AbortError') {
-                throw new Error(`${providerName} API请求超时`);
-            }
-            throw new Error(`${providerName}生成失败: ${error.message}`);
-        }
-        throw new Error(`${providerName}生成失败: 未知错误`);
-    }
+  /**
+   * 识别总结性描述行（应该被过滤掉）
+   */
+  private isDescriptiveSummary(line: string): boolean {
+    const lower = line.toLowerCase();
+    return (
+      lower.includes("本次提交") ||
+      lower.includes("此次提交") ||
+      lower.includes("本次更新") ||
+      lower.includes("此次更新") ||
+      lower.includes("包含") ||
+      lower.includes("涉及") ||
+      lower.includes("总结") ||
+      lower.includes("概述") ||
+      (lower.length > 30 && !line.includes(":") && !line.startsWith("-"))
+    );
+  }
 
-    /**
-     * 创建带超时的fetch请求
-     */
-    protected async fetchWithTimeout(url: string, options: RequestInit, timeout: number = 30000): Promise<Response> {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
-        try {
-            const response = await fetch(url, {
-                ...options,
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            return response;
-        } catch (error) {
-            clearTimeout(timeoutId);
-            throw error;
-        }
+  /**
+   * 从提交行中提取提交类型
+   */
+  private getCommitType(line: string): string {
+    const match = line.match(
+      /^(?:[✨🐛📝💄♻️⚡✅📦👷🔧🌐]\s+)?(\w+)(?:\([^)]*\))?:/,
+    );
+    return match ? match[1] : "";
+  }
+
+  /**
+   * 根据提交类型获取对应的emoji
+   */
+  private getEmojiForType(type: string): string {
+    const emojiMap: { [key: string]: string } = {
+      feat: "✨",
+      fix: "🐛",
+      docs: "📝",
+      style: "💄",
+      refactor: "♻️",
+      perf: "⚡",
+      test: "✅",
+      build: "📦",
+      ci: "👷",
+      chore: "🔧",
+      i18n: "🌐",
+    };
+    return emojiMap[type] || "✨";
+  }
+
+  /**
+   * 获取文件状态的中文描述
+   */
+  protected getStatusDescription(status: string): string {
+    const statusMap: { [key: string]: string } = {
+      M: "修改",
+      A: "新增",
+      D: "删除",
+      R: "重命名",
+      C: "复制",
+      "?": "未跟踪",
+      "!": "缺失",
+    };
+    return statusMap[status] || status;
+  }
+
+  /**
+   * 处理API错误的统一方法
+   */
+  protected handleApiError(error: any, providerName: string): never {
+    console.error(`${providerName} API调用失败:`, error);
+    if (error instanceof Error) {
+      if (error.name === "AbortError") {
+        throw new Error(`${providerName} API请求超时`);
+      }
+      throw new Error(`${providerName}生成失败: ${error.message}`);
     }
+    throw new Error(`${providerName}生成失败: 未知错误`);
+  }
+
+  /**
+   * 创建带超时的fetch请求
+   */
+  protected async fetchWithTimeout(
+    url: string,
+    options: RequestInit,
+    timeout: number = 30000,
+  ): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
+  }
 }

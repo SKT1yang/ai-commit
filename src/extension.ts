@@ -20,17 +20,22 @@ function initializeServices() {
 function registerCommands(context: vscode.ExtensionContext) {
   const generateCommand = vscode.commands.registerCommand(
     "ai-message.generateCommitMessage",
-    handleGenerateCommitMessage
+    handleGenerateCommitMessage,
   );
 
   const quickCommand = vscode.commands.registerCommand(
     "ai-message.quickCommit",
-    handleQuickCommit
+    handleQuickCommit,
   );
 
   const configureCommand = vscode.commands.registerCommand(
     "ai-message.configureAI",
-    handleConfigureAI
+    handleConfigureAI,
+  );
+
+  const zendaoCommand = vscode.commands.registerCommand(
+    "ai-message.generateZendaoCommitMessage",
+    generateZendaoCommitMessage,
   );
 
   context.subscriptions.push(generateCommand, quickCommand, configureCommand);
@@ -81,7 +86,6 @@ async function unifiedGenerateCommit() {
       }
 
       progress.report({ increment: 55, message: "模型流式生成中..." });
-      // 重用已有流式函数：需要一个封装新增参数（此处直接调用现有 generateWithCopilotStreaming）
       try {
         await generateWithCopilotStreaming(changes, changedFiles, progress, {
           fallbackToOutput: !scmWritable,
@@ -94,24 +98,24 @@ async function unifiedGenerateCommit() {
         }
         const msg = await aiService.generateCommitMessage(
           changes,
-          changedFiles
+          changedFiles,
         );
         if (msg) {
           const formatted = enforceConventionalCommit(
             extractCommitMessage(msg),
             changedFiles,
-            changes
+            changes,
           );
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
           vscode.window.showInformationMessage(
-            "⚠️ 已使用非流式方式生成提交信息"
+            "⚠️ 已使用非流式方式生成提交信息",
           );
         } else {
           vscode.window.showErrorMessage("无法生成提交信息");
         }
       }
-    }
+    },
   );
 }
 
@@ -141,7 +145,7 @@ async function handleQuickCommit() {
       vscode.window
         .showInformationMessage(
           "✅ 提交信息已快速生成并填充到Source Control！",
-          "查看"
+          "查看",
         )
         .then((selection) => {
           if (selection === "查看") {
@@ -170,7 +174,7 @@ async function validateVcsRepository(): Promise<IVersionControlService | null> {
       vscode.window
         .showErrorMessage(
           "当前工作区不是Git或SVN仓库，或版本控制工具不可用",
-          "了解更多"
+          "了解更多",
         )
         .then((selection) => {
           if (selection === "了解更多") {
@@ -215,10 +219,8 @@ async function getVcsChanges(): Promise<string | null> {
 const outputChannel = vscode.window.createOutputChannel("AI Commit Stream");
 
 interface StreamOptions {
-  fallbackToOutput?: boolean;
+  fallbackToOutput?: boolean; // 当SCM输入框不可写时，是否回退到输出通道
 }
-
-// generateCommitMessageStreaming 已被 unifiedGenerateCommit + generateWithCopilotStreaming 取代
 
 /**
  * 使用Copilot流式生成提交信息
@@ -227,7 +229,7 @@ async function generateWithCopilotStreaming(
   changes: string,
   changedFiles: any[],
   progress: vscode.Progress<{ increment?: number; message?: string }>,
-  options: StreamOptions = {}
+  options: StreamOptions = {},
 ): Promise<void> {
   try {
     // 获取 Copilot 模型
@@ -257,7 +259,7 @@ async function generateWithCopilotStreaming(
     const response = await model.sendRequest(
       messages,
       {},
-      new vscode.CancellationTokenSource().token
+      new vscode.CancellationTokenSource().token,
     );
     const debug = vscode.workspace
       .getConfiguration("aiMessage")
@@ -281,7 +283,7 @@ async function generateWithCopilotStreaming(
       result += fragment;
       if (debug) {
         console.log(
-          `[AI-Message][Stream] 片段#${fragmentCount} 长度=${fragment.length} 累计=${result.length}`
+          `[AI-Message][Stream] 片段#${fragmentCount} 长度=${fragment.length} 累计=${result.length}`,
         );
       }
 
@@ -298,7 +300,7 @@ async function generateWithCopilotStreaming(
         const ok = await setScmInputBoxValue(displayText);
         if (debug && !ok && !options.fallbackToOutput) {
           console.log(
-            "[AI-Message][Stream] SCM写入失败但未启用fallbackToOutput"
+            "[AI-Message][Stream] SCM写入失败但未启用fallbackToOutput",
           );
         }
         if (!ok && options.fallbackToOutput) {
@@ -333,13 +335,13 @@ async function generateWithCopilotStreaming(
         const totalMs = Date.now() - startTime;
         const ttfb = firstChunkTime ? firstChunkTime - startTime : -1;
         console.log(
-          `[AI-Message][Stream] 完成，总片段=${fragmentCount}, 总长度=${result.length}, 首字节(ms)=${ttfb}, 总耗时(ms)=${totalMs}`
+          `[AI-Message][Stream] 完成，总片段=${fragmentCount}, 总长度=${result.length}, 首字节(ms)=${ttfb}, 总耗时(ms)=${totalMs}`,
         );
       }
       const formatted = enforceConventionalCommit(
         cleanMessage,
         changedFiles,
-        changes
+        changes,
       );
       const finalOk = await setScmInputBoxValue(formatted);
       if (!finalOk && options.fallbackToOutput) {
@@ -366,25 +368,25 @@ async function generateWithCopilotStreaming(
 function buildCopilotPrompt(
   diff: string,
   changedFiles: any[],
-  vcsType: string
+  vcsType: string,
 ): string {
   const config = vscode.workspace.getConfiguration("aiMessage");
   // 统一使用 commit.* 新键名；兼容旧键名（如果用户还未升级 settings）
   const enableEmoji = config.get(
     "commit.enableEmoji",
-    config.get("commitFormat.enableEmoji", true)
+    config.get("commitFormat.enableEmoji", true),
   );
   const enableBody = config.get(
     "commit.enableBody",
-    config.get("commitFormat.enableBody", true)
+    config.get("commitFormat.enableBody", true),
   );
   const enableScope = config.get(
     "commit.enableScope",
-    config.get("commitFormat.enableScope", true)
+    config.get("commitFormat.enableScope", true),
   );
   const language = config.get(
     "commit.language",
-    config.get("commitFormat.language", "zh-CN")
+    config.get("commitFormat.language", "zh-CN"),
   );
 
   // 语言归一化：支持多种中文表示方式
@@ -474,7 +476,7 @@ function buildCopilotPrompt(
   const added = changedFiles.filter((f) => f.status === "A").length;
   const modified = changedFiles.filter((f) => f.status === "M").length;
   const deleted = changedFiles.filter(
-    (f) => f.status === "D" || f.status === "!"
+    (f) => f.status === "D" || f.status === "!",
   ).length;
   const renamed = changedFiles.filter((f) => f.status === "R").length;
   const statsLine = isZhCN
@@ -525,7 +527,7 @@ function extractCommitMessage(content: string): string {
   // 移除可能的前缀
   content = content.replace(
     /^(提交信息[:：]?\s*|commit message[:：]?\s*)/i,
-    ""
+    "",
   );
 
   // 清理多余的空行
@@ -540,7 +542,7 @@ function extractCommitMessage(content: string): string {
 function generateIntelligentBody(
   diff: string,
   changedFiles: any[],
-  isZh: boolean = true
+  isZh: boolean = true,
 ): string {
   const bodyLines: string[] = [];
 
@@ -554,7 +556,7 @@ function generateIntelligentBody(
     bodyLines.push(
       isZh
         ? `- 新增函数: ${funcs.join(", ")}`
-        : `- Add functions: ${funcs.join(", ")}`
+        : `- Add functions: ${funcs.join(", ")}`,
     );
   }
 
@@ -563,25 +565,25 @@ function generateIntelligentBody(
     bodyLines.push(
       isZh
         ? `- 修改函数: ${funcs.join(", ")}`
-        : `- Modify functions: ${funcs.join(", ")}`
+        : `- Modify functions: ${funcs.join(", ")}`,
     );
   }
 
   if (diffAnalysis.hasImportChanges) {
     bodyLines.push(
-      isZh ? "- 更新依赖导入关系" : "- Update import dependencies"
+      isZh ? "- 更新依赖导入关系" : "- Update import dependencies",
     );
   }
 
   if (diffAnalysis.hasConfigChanges) {
     bodyLines.push(
-      isZh ? "- 调整配置参数" : "- Adjust configuration parameters"
+      isZh ? "- 调整配置参数" : "- Adjust configuration parameters",
     );
   }
 
   if (diffAnalysis.hasDocChanges) {
     bodyLines.push(
-      isZh ? "- 更新文档和注释" : "- Update documentation and comments"
+      isZh ? "- 更新文档和注释" : "- Update documentation and comments",
     );
   }
 
@@ -599,7 +601,7 @@ function generateIntelligentBody(
     bodyLines.push(
       isZh
         ? `- 影响模块: ${modules.join(", ")}`
-        : `- Affected modules: ${modules.join(", ")}`
+        : `- Affected modules: ${modules.join(", ")}`,
     );
   }
 
@@ -634,7 +636,7 @@ function analyzeDiffContent(diff: string) {
 
       // 检测新增函数
       const funcMatch = line.match(
-        /^\+.*(?:function|def|const|let|var)\s+(\w+)/
+        /^\+.*(?:function|def|const|let|var)\s+(\w+)/,
       );
       if (funcMatch && funcMatch[1]) {
         analysis.newFunctions.push(funcMatch[1]);
@@ -659,7 +661,7 @@ function analyzeDiffContent(diff: string) {
 
       // 检测修改的函数（删除+新增同一函数名）
       const funcMatch = line.match(
-        /^-.*(?:function|def|const|let|var)\s+(\w+)/
+        /^-.*(?:function|def|const|let|var)\s+(\w+)/,
       );
       if (funcMatch && funcMatch[1]) {
         analysis.modifiedFunctions.push(funcMatch[1]);
@@ -729,21 +731,21 @@ function generateBasicBody(changedFiles: any[], isZh: boolean = true): string {
     bodyLines.push(
       isZh
         ? `- 新增文件: ${filesByType["A"].slice(0, 3).join(", ")}`
-        : `- Add files: ${filesByType["A"].slice(0, 3).join(", ")}`
+        : `- Add files: ${filesByType["A"].slice(0, 3).join(", ")}`,
     );
   }
   if (filesByType["M"]) {
     bodyLines.push(
       isZh
         ? `- 修改文件: ${filesByType["M"].slice(0, 3).join(", ")}`
-        : `- Modify files: ${filesByType["M"].slice(0, 3).join(", ")}`
+        : `- Modify files: ${filesByType["M"].slice(0, 3).join(", ")}`,
     );
   }
   if (filesByType["D"]) {
     bodyLines.push(
       isZh
         ? `- 删除文件: ${filesByType["D"].slice(0, 3).join(", ")}`
-        : `- Delete files: ${filesByType["D"].slice(0, 3).join(", ")}`
+        : `- Delete files: ${filesByType["D"].slice(0, 3).join(", ")}`,
     );
   }
 
@@ -755,7 +757,7 @@ function generateBasicBody(changedFiles: any[], isZh: boolean = true): string {
  */
 function validateAndOptimizeBody(
   body: string,
-  isZh: boolean = true
+  isZh: boolean = true,
 ): { body: string; warnings: string[] } {
   const warnings: string[] = [];
   let optimizedBody = body;
@@ -771,7 +773,7 @@ function validateAndOptimizeBody(
     warnings.push(
       isZh
         ? "Body内容过长，建议简化"
-        : "Body content too long, consider simplifying"
+        : "Body content too long, consider simplifying",
     );
     optimizedBody = lines.slice(0, 10).join("\n");
   }
@@ -782,7 +784,7 @@ function validateAndOptimizeBody(
     warnings.push(
       isZh
         ? `${longLines.length}行超过72字符`
-        : `${longLines.length} lines exceed 72 characters`
+        : `${longLines.length} lines exceed 72 characters`,
     );
   }
 
@@ -822,14 +824,14 @@ function validateAndOptimizeBody(
       line.includes("删除文件") ||
       line.includes("Add files") ||
       line.includes("Modify files") ||
-      line.includes("Delete files")
+      line.includes("Delete files"),
   );
 
   if (hasOnlyFileList && lines.length === 1) {
     warnings.push(
       isZh
         ? "建议添加更详细的变更说明"
-        : "Consider adding more detailed change descriptions"
+        : "Consider adding more detailed change descriptions",
     );
   }
 
@@ -840,22 +842,22 @@ function validateAndOptimizeBody(
 function enforceConventionalCommit(
   raw: string,
   changedFiles?: any[],
-  diff?: string
+  diff?: string,
 ): string {
   const config = vscode.workspace.getConfiguration("aiMessage");
   const enableEmoji = config.get(
     "commit.enableEmoji",
-    config.get("commitFormat.enableEmoji", true)
+    config.get("commitFormat.enableEmoji", true),
   );
   const enableBody = config.get(
     "commit.enableBody",
-    config.get("commitFormat.enableBody", true)
+    config.get("commitFormat.enableBody", true),
   );
   const enableIntelligentBody = config.get("commit.intelligentBody", true);
   const enableBodyQualityCheck = config.get("commit.bodyQualityCheck", true);
   const language = config.get(
     "commit.language",
-    config.get("commitFormat.language", "zh-CN")
+    config.get("commitFormat.language", "zh-CN"),
   );
 
   // 从配置中获取模板
@@ -939,7 +941,7 @@ function enforceConventionalCommit(
 
   const headerMatch =
     /^(\p{Emoji_Presentation}|\p{Extended_Pictographic})?\s*([a-zA-Z\u4e00-\u9fa5]+)(?:\(([^)]+)\))?:\s*(.+)$/u.exec(
-      header
+      header,
     );
   if (headerMatch) {
     const maybeType = headerMatch[2].toLowerCase();
@@ -1000,7 +1002,7 @@ function enforceConventionalCommit(
         if (debug) {
           console.log(
             "[AI-Message][Body-Quality] 质量检查警告:",
-            validation.warnings
+            validation.warnings,
           );
         }
       }
@@ -1019,7 +1021,10 @@ function enforceConventionalCommit(
   }
 
   // 替换模板中的 {message} 占位符
-  return template.replace(/{message}/g, message).replace(/{header}/g, finalHeader).replace(/{body}/g, body);
+  return template
+    .replace(/{message}/g, message)
+    .replace(/{header}/g, finalHeader)
+    .replace(/{body}/g, body);
 }
 
 async function generateCommitMessage(changes: string): Promise<string | null> {
@@ -1032,12 +1037,12 @@ async function generateCommitMessage(changes: string): Promise<string | null> {
     const status = await vcsService.getCommitReadyChanges();
     const message = await aiService.generateCommitMessage(
       changes,
-      status.changedFiles
+      status.changedFiles,
     );
 
     if (!message || message.trim().length === 0) {
       vscode.window.showErrorMessage(
-        "无法生成提交信息，请检查GitHub Copilot是否已安装并登录"
+        "无法生成提交信息，请检查GitHub Copilot是否已安装并登录",
       );
       return null;
     }
@@ -1058,7 +1063,7 @@ async function handleCommitMessageGenerated(commitMessage: string) {
       vscode.window
         .showInformationMessage(
           "✅ 提交信息已生成并填充到Source Control输入框！",
-          "查看信息"
+          "查看信息",
         )
         .then((action) => {
           if (action === "查看信息") {
@@ -1074,7 +1079,7 @@ async function handleCommitMessageGenerated(commitMessage: string) {
         { modal: false },
         "查看信息",
         "编辑信息",
-        "提交说明"
+        "提交说明",
       );
 
       switch (action) {
@@ -1124,7 +1129,7 @@ async function setScmInputBoxValue(message: string): Promise<boolean> {
 
     // 方法2：尝试SVN扩展API
     const svnExtension = vscode.extensions.getExtension(
-      "johnstoncode.svn-scm"
+      "johnstoncode.svn-scm",
     )?.exports;
     if (svnExtension && svnExtension.getAPI) {
       try {
@@ -1193,7 +1198,7 @@ async function showCommitMessagePreview(commitMessage: string) {
     console.error("显示提交信息预览时发生错误:", error);
     vscode.window.showInformationMessage(
       `生成的提交信息：\n\n${commitMessage}`,
-      { modal: true }
+      { modal: true },
     );
   }
 }
@@ -1295,7 +1300,7 @@ async function handleConfigureAI() {
       case "settings":
         await vscode.commands.executeCommand(
           "workbench.action.openSettings",
-          "aiMessage.ai"
+          "aiMessage.ai",
         );
         break;
       case "test":
@@ -1309,7 +1314,7 @@ async function handleConfigureAI() {
 
 async function showProviderStatus(
   status: { name: string; available: boolean; error?: string }[],
-  currentProvider: string
+  currentProvider: string,
 ) {
   const statusText = status
     .map((s) => {
@@ -1323,7 +1328,7 @@ async function showProviderStatus(
   await vscode.window.showInformationMessage(
     `AI提供商状态:\n\n${statusText}`,
     { modal: true },
-    "确定"
+    "确定",
   );
 }
 
@@ -1356,9 +1361,9 @@ async function testAIConnection() {
       await vscode.window.showInformationMessage(
         message,
         { modal: true },
-        "确定"
+        "确定",
       );
-    }
+    },
   );
 }
 
@@ -1370,15 +1375,32 @@ async function handleError(context: string, error: any) {
   const action = await vscode.window.showErrorMessage(
     `${context}: ${errorMessage}`,
     "重试",
-    "报告问题"
+    "报告问题",
   );
 
   if (action === "重试") {
     vscode.commands.executeCommand("ai-message.generateCommitMessage");
   } else if (action === "报告问题") {
     vscode.env.openExternal(
-      vscode.Uri.parse("https://github.com/jianxiaofei/AI-message/issues")
+      vscode.Uri.parse("https://github.com/jianxiaofei/AI-message/issues"),
     );
+  }
+}
+
+async function generateZendaoCommitMessage() {
+    try {
+    const editedMessage = await vscode.window.showInputBox({
+      title: "请输入禅道Bug或任务编号",
+      value: "",
+      prompt: "输入编号后按回车生成提交信息",
+      ignoreFocusOut: true,
+    });
+
+    if (editedMessage !== undefined && editedMessage.trim().length > 0) {
+      
+    }
+  } catch (error) {
+    await handleError("编辑提交信息时发生错误", error);
   }
 }
 

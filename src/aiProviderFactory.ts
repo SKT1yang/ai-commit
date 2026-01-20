@@ -140,7 +140,7 @@ export class AIService {
         return this.provider;
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         if (!this.provider) {
             await this.refreshProvider();
         }
@@ -155,14 +155,14 @@ export class AIService {
             // 尝试使用后备提供商
             const fallbackProvider = await this.getFallbackProvider();
             if (fallbackProvider) {
-                return await fallbackProvider.generateCommitMessage(diff, changedFiles);
+                return await fallbackProvider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
             }
             
             throw new Error(`AI提供商 ${this.provider.name} 不可用`);
         }
 
         try {
-            return await this.provider.generateCommitMessage(diff, changedFiles);
+            return await this.provider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
         } catch (error) {
             console.error(`AI提供商 ${this.provider.name} 生成失败:`, error);
             
@@ -170,7 +170,7 @@ export class AIService {
             const fallbackProvider = await this.getFallbackProvider();
             if (fallbackProvider) {
                 console.log(`使用后备提供商: ${fallbackProvider.name}`);
-                return await fallbackProvider.generateCommitMessage(diff, changedFiles);
+                return await fallbackProvider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
             }
             
             // 如果启用了后备功能，使用基于规则的生成

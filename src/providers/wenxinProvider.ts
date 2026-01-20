@@ -15,7 +15,7 @@ export class WenxinProvider extends BaseProvider {
         return !!(this.config?.wenxinApiKey && this.config?.wenxinSecretKey);
     }
 
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[]): Promise<string> {
+    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
         if (!this.config?.wenxinApiKey || !this.config?.wenxinSecretKey) {
             throw new Error('请配置文心一言API Key和Secret Key');
         }
@@ -23,7 +23,7 @@ export class WenxinProvider extends BaseProvider {
         try {
             const accessToken = await this.getAccessToken();
             const model = this.config?.wenxinModel || 'ernie-3.5-8k';
-            const prompt = this.buildBasePrompt(diff, changedFiles);
+            const prompt = this.buildBasePrompt(diff, changedFiles, zendaoPrompt);
             
             // 根据模型确定API端点
             const modelEndpoints: { [key: string]: string } = {
