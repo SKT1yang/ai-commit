@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { AIProvider } from "../aiInterface";
-import { SvnFile } from "../svnService";
+import { SvnFile } from "../../vcs/svnService";
 
 export class CopilotProvider implements AIProvider {
   readonly name = "GitHub Copilot";

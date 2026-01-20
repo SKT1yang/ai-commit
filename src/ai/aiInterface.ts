@@ -1,9 +1,10 @@
-import { SvnFile } from './svnService';
+import { SvnFile } from "../vcs/svnService";
 
 export interface AIProvider {
     readonly name: string;
     isAvailable(): Promise<boolean>;
     generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string>;
+    streamCommitMessage?(diff: string, changedFiles: SvnFile[], onFragment: (fragment: string) => void, zendaoPrompt?: string): Promise<string>;
 }
 
 export interface AIConfig {

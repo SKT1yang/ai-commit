@@ -1,5 +1,5 @@
 import { AIConfig } from '../aiInterface';
-import { SvnFile } from '../svnService';
+import { SvnFile } from "../../vcs/svnService";
 import { BaseProvider } from './baseProvider';
 
 export class QianwenProvider extends BaseProvider {

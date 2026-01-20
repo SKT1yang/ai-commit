@@ -1,6 +1,6 @@
 import { AIConfig } from '../aiInterface';
-import { SvnFile } from '../svnService';
 import { BaseProvider } from './baseProvider';
+import { SvnFile } from "../../vcs/svnService";
 
 export class CustomProvider extends BaseProvider {
     readonly name = '自定义API';

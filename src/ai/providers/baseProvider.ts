@@ -1,5 +1,5 @@
 import { AIProvider, AIConfig } from "../aiInterface";
-import { SvnFile } from "../svnService";
+import { SvnFile } from "../../vcs/svnService";
 
 export abstract class BaseProvider implements AIProvider {
   abstract readonly name: string;

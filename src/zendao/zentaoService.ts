@@ -1,6 +1,5 @@
-import * as fs from "fs";
 import { ZendaoConfig } from "./zendaoInterface";
-import { ZendaoResponse } from "./ZendaoResponse";
+import { ZendaoResponse } from "./zendaoResponse";
 
 export class ZentaoService {
   cookie: string;

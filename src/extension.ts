@@ -1,7 +1,7 @@
 import * as vscode from "vscode";
-import { VcsFactory } from "./vcsFactory";
-import { IVersionControlService } from "./vcsInterface";
-import { AIService } from "./aiProviderFactory";
+import { VcsFactory } from "./vcs/vcsFactory";
+import { IVersionControlService } from "./vcs/vcsInterface";
+import { AIService } from "./ai/aiProviderFactory";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;

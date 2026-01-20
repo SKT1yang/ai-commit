@@ -6,7 +6,7 @@ import { QianwenProvider } from './providers/qianwenProvider';
 import { WenxinProvider } from './providers/wenxinProvider';
 import { ZhipuProvider } from './providers/zhipuProvider';
 import { CustomProvider } from './providers/customProvider';
-import { SvnFile } from './svnService';
+import { SvnFile } from '../vcs/svnService';
 
 export class AIProviderFactory {
     private static providers: Map<string, AIProvider> = new Map();
