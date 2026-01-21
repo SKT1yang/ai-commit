@@ -104,8 +104,7 @@ export class ZentaoService {
         break;
     }
 
-    return `## 来自禅道的提示:
-缺陷ID: ${bugInfo?.bug.id}
+    return `缺陷ID: ${bugInfo?.bug.id}
 标题: ${bugInfo?.bug.title}
 状态: ${bugInfo?.bug.status}
 指派给: ${bugInfo?.bug.assignedTo}
@@ -118,8 +117,7 @@ export class ZentaoService {
 产品: ${productName}
 模块: ${module}
 重现步骤: ${bugInfo?.bug.steps}
-描述: ${bugInfo?.title}
-请根据以上提供的信息，优化commit的分析和建议。`;
+描述: ${bugInfo?.title}`;
   }
 
   async getBugById(bugId: number): Promise<ZendaoResponse> {
