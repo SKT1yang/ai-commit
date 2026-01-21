@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 import { SvnService } from './svnService';
 import { GitService } from './gitService';
 import { IVersionControlService } from './vcsInterface';

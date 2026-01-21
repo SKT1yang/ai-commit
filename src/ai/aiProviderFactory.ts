@@ -1,269 +1,189 @@
-import * as vscode from 'vscode';
-import { AIProvider, AIConfig } from './aiInterface';
-import { CopilotProvider } from './providers/copilotProvider';
-import { OllamaProvider } from './providers/ollamaProvider';
-import { QianwenProvider } from './providers/qianwenProvider';
-import { WenxinProvider } from './providers/wenxinProvider';
-import { ZhipuProvider } from './providers/zhipuProvider';
-import { CustomProvider } from './providers/customProvider';
-import { SvnFile } from '../vcs/svnService';
+import * as vscode from "vscode";
+import { AIProvider, AIConfig } from "./aiInterface";
+import { CopilotProvider } from "./providers/copilotProvider";
+import { OllamaProvider } from "./providers/ollamaProvider";
+import { QianwenProvider } from "./providers/qianwenProvider";
+import { WenxinProvider } from "./providers/wenxinProvider";
+import { ZhipuProvider } from "./providers/zhipuProvider";
+import { CustomProvider } from "./providers/customProvider";
+import { CONFIG_KEYS } from "./utils/constants";
 
 export class AIProviderFactory {
-    private static providers: Map<string, AIProvider> = new Map();
+  private static readonly providers: Map<string, AIProvider> = new Map();
 
-    static async createProvider(config: AIConfig): Promise<AIProvider> {
-        const key = `${config.provider}-${JSON.stringify(config)}`;
-        
-        if (this.providers.has(key)) {
-            return this.providers.get(key)!;
-        }
+  /**
+   * 根据配置创建或获取AI提供者实例
+   */
+  static async createProvider(config: AIConfig): Promise<AIProvider> {
+    const key = this.generateProviderKey(config);
 
-        let provider: AIProvider;
-
-        switch (config.provider) {
-            case 'copilot':
-                provider = new CopilotProvider();
-                break;
-            case 'ollama':
-                provider = new OllamaProvider(config);
-                break;
-            case 'qianwen':
-                provider = new QianwenProvider(config);
-                break;
-            case 'wenxin':
-                provider = new WenxinProvider(config);
-                break;
-            case 'zhipu':
-                provider = new ZhipuProvider(config);
-                break;
-            case 'custom':
-                provider = new CustomProvider(config);
-                break;
-            default:
-                throw new Error(`不支持的AI提供商: ${config.provider}`);
-        }
-
-        this.providers.set(key, provider);
-        return provider;
+    if (this.providers.has(key)) {
+      return this.providers.get(key)!;
     }
 
-    static async getAvailableProviders(config: AIConfig): Promise<AIProvider[]> {
-        const allProviders = [
-            new CopilotProvider(),
-            new OllamaProvider(config),
-            new QianwenProvider(config),
-            new WenxinProvider(config),
-            new ZhipuProvider(config),
-            new CustomProvider(config)
-        ];
+    const provider = this.instantiateProvider(config);
+    this.providers.set(key, provider);
+    return provider;
+  }
 
-        const availableProviders: AIProvider[] = [];
-        
-        for (const provider of allProviders) {
-            try {
-                if (await provider.isAvailable()) {
-                    availableProviders.push(provider);
-                }
-            } catch (error) {
-                console.warn(`检查AI提供商 ${provider.name} 可用性时出错:`, error);
-            }
-        }
+  /**
+   * 获取所有可用的AI提供者
+   */
+  static async getAvailableProviders(config: AIConfig): Promise<AIProvider[]> {
+    const allProviders = this.createAllProviderInstances(config);
+    const availabilityChecks = allProviders.map(async (provider) => ({
+      provider,
+      available: await this.checkProviderAvailability(provider),
+    }));
 
-        return availableProviders;
-    }
+    const results = await Promise.allSettled(availabilityChecks);
 
-    static getConfigFromSettings(): AIConfig {
-        const config = vscode.workspace.getConfiguration('aiMessage');
-        
+    return results
+      .filter(
+        (
+          result,
+        ): result is PromiseFulfilledResult<{
+          provider: AIProvider;
+          available: boolean;
+        }> => result.status === "fulfilled" && result.value.available,
+      )
+      .map((result) => result.value.provider);
+  }
+
+  /**
+   * 从VSCode设置获取配置
+   */
+  static getConfigFromSettings(): AIConfig {
+    const config = vscode.workspace.getConfiguration("aiMessage");
+
+    return {
+      provider: config.get(CONFIG_KEYS.AI.PROVIDER, "copilot") as any,
+      timeout: config.get(CONFIG_KEYS.AI.TIMEOUT, 30000),
+
+      // 提交信息格式配置
+      enableEmoji: config.get(CONFIG_KEYS.COMMIT.ENABLE_EMOJI, true),
+      enableBody: config.get(CONFIG_KEYS.COMMIT.ENABLE_BODY, true),
+      enableScope: config.get(CONFIG_KEYS.COMMIT.ENABLE_SCOPE, true),
+      language: config.get(CONFIG_KEYS.COMMIT.LANGUAGE, "简体中文"),
+
+      // 各提供者配置
+      ollamaEndpoint: config.get(
+        CONFIG_KEYS.AI.OLLAMA_ENDPOINT,
+        "http://localhost:11434",
+      ),
+      ollamaModel: config.get(CONFIG_KEYS.AI.OLLAMA_MODEL, "qwen2.5:7b"),
+
+      qianwenApiKey: config.get(CONFIG_KEYS.AI.QIANWEN_API_KEY, ""),
+      qianwenModel: config.get(CONFIG_KEYS.AI.QIANWEN_MODEL, "qwen-plus"),
+
+      wenxinApiKey: config.get(CONFIG_KEYS.AI.WENXIN_API_KEY, ""),
+      wenxinSecretKey: config.get(CONFIG_KEYS.AI.WENXIN_SECRET_KEY, ""),
+      wenxinModel: config.get(CONFIG_KEYS.AI.WENXIN_MODEL, "ernie-3.5-8k"),
+
+      zhipuApiKey: config.get(CONFIG_KEYS.AI.ZHIPU_API_KEY, ""),
+      zhipuModel: config.get(CONFIG_KEYS.AI.ZHIPU_MODEL, "glm-4"),
+
+      customEndpoint: config.get(CONFIG_KEYS.AI.CUSTOM_ENDPOINT, ""),
+      customApiKey: config.get(CONFIG_KEYS.AI.CUSTOM_API_KEY, ""),
+      customModel: config.get(CONFIG_KEYS.AI.CUSTOM_MODEL, ""),
+    };
+  }
+
+  /**
+   * 清理缓存的提供者实例
+   */
+  static clearCache(): void {
+    this.providers.clear();
+  }
+
+  /**
+   * 获取提供者状态信息
+   */
+  static async getProviderStatus(): Promise<
+    Array<{ name: string; available: boolean; error?: string }>
+  > {
+    const config = this.getConfigFromSettings();
+    const allProviders = this.createAllProviderInstances(config);
+
+    const statusPromises = allProviders.map(async (provider) => {
+      try {
+        const available = await provider.isAvailable();
+        return { name: provider.name, available };
+      } catch (error) {
         return {
-            provider: config.get('ai.provider', 'copilot') as any,
-            timeout: config.get('ai.timeout', 30000),
-            
-            // 提交信息格式配置
-            enableEmoji: config.get('commit.enableEmoji', true),
-            enableBody: config.get('commit.enableBody', true),
-            enableScope: config.get('commit.enableScope', true),
-            language: config.get('commit.language', '简体中文'),
-            
-            // Ollama配置
-            ollamaEndpoint: config.get('ai.ollamaEndpoint', 'http://localhost:11434'),
-            ollamaModel: config.get('ai.ollamaModel', 'qwen2.5:7b'),
-            
-            // 通义千问配置
-            qianwenApiKey: config.get('ai.qianwenApiKey', ''),
-            qianwenModel: config.get('ai.qianwenModel', 'qwen-plus'),
-            
-            // 文心一言配置
-            wenxinApiKey: config.get('ai.wenxinApiKey', ''),
-            wenxinSecretKey: config.get('ai.wenxinSecretKey', ''),
-            wenxinModel: config.get('ai.wenxinModel', 'ernie-3.5-8k'),
-            
-            // 智谱AI配置
-            zhipuApiKey: config.get('ai.zhipuApiKey', ''),
-            zhipuModel: config.get('ai.zhipuModel', 'glm-4'),
-            
-            // 自定义配置
-            customEndpoint: config.get('ai.customEndpoint', ''),
-            customApiKey: config.get('ai.customApiKey', ''),
-            customModel: config.get('ai.customModel', '')
+          name: provider.name,
+          available: false,
+          error: error instanceof Error ? error.message : "未知错误",
         };
+      }
+    });
+
+    return Promise.all(statusPromises);
+  }
+
+  /**
+   * 根据配置生成提供者缓存键
+   */
+  private static generateProviderKey(config: AIConfig): string {
+    const relevantConfig = {
+      provider: config.provider,
+      ollamaEndpoint: config.ollamaEndpoint,
+      ollamaModel: config.ollamaModel,
+      qianwenModel: config.qianwenModel,
+      wenxinModel: config.wenxinModel,
+      zhipuModel: config.zhipuModel,
+      customModel: config.customModel,
+    };
+    return `${config.provider}-${JSON.stringify(relevantConfig)}`;
+  }
+
+  /**
+   * 实例化具体的AI提供者
+   */
+  private static instantiateProvider(config: AIConfig): AIProvider {
+    switch (config.provider) {
+      case "copilot":
+        return new CopilotProvider();
+      case "ollama":
+        return new OllamaProvider(config);
+      case "qianwen":
+        return new QianwenProvider(config);
+      case "wenxin":
+        return new WenxinProvider(config);
+      case "zhipu":
+        return new ZhipuProvider(config);
+      case "custom":
+        return new CustomProvider(config);
+      default:
+        throw new Error(`不支持的AI提供商: ${config.provider}`);
     }
-}
+  }
 
-export class AIService {
-    private provider: AIProvider | null = null;
-    private config: AIConfig;
+  /**
+   * 创建所有提供者实例
+   */
+  private static createAllProviderInstances(config: AIConfig): AIProvider[] {
+    return [
+      new CopilotProvider(),
+      new OllamaProvider(config),
+      new QianwenProvider(config),
+      new WenxinProvider(config),
+      new ZhipuProvider(config),
+      new CustomProvider(config),
+    ];
+  }
 
-    constructor() {
-        this.config = AIProviderFactory.getConfigFromSettings();
-        this.refreshProvider();
-        
-        // 监听配置变化
-        vscode.workspace.onDidChangeConfiguration(event => {
-            if (event.affectsConfiguration('aiMessage.ai')) {
-                this.config = AIProviderFactory.getConfigFromSettings();
-                this.refreshProvider();
-            }
-        });
+  /**
+   * 检查提供者可用性，包含错误处理
+   */
+  private static async checkProviderAvailability(
+    provider: AIProvider,
+  ): Promise<boolean> {
+    try {
+      return await provider.isAvailable();
+    } catch (error) {
+      console.warn(`检查AI提供商 ${provider.name} 可用性时出错:`, error);
+      return false;
     }
-
-    private async refreshProvider() {
-        try {
-            this.provider = await AIProviderFactory.createProvider(this.config);
-        } catch (error) {
-            console.error('创建AI提供商失败:', error);
-            this.provider = null;
-        }
-    }
-
-    getCurrentProvider(): AIProvider | null {
-        return this.provider;
-    }
-
-    async generateCommitMessage(diff: string, changedFiles: SvnFile[], zendaoPrompt?: string): Promise<string> {
-        if (!this.provider) {
-            await this.refreshProvider();
-        }
-
-        if (!this.provider) {
-            throw new Error('未配置可用的AI提供商');
-        }
-
-        // 检查提供商是否可用
-        const isAvailable = await this.provider.isAvailable();
-        if (!isAvailable) {
-            // 尝试使用后备提供商
-            const fallbackProvider = await this.getFallbackProvider();
-            if (fallbackProvider) {
-                return await fallbackProvider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
-            }
-            
-            throw new Error(`AI提供商 ${this.provider.name} 不可用`);
-        }
-
-        try {
-            return await this.provider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
-        } catch (error) {
-            console.error(`AI提供商 ${this.provider.name} 生成失败:`, error);
-            
-            // 尝试使用后备提供商
-            const fallbackProvider = await this.getFallbackProvider();
-            if (fallbackProvider) {
-                console.log(`使用后备提供商: ${fallbackProvider.name}`);
-                return await fallbackProvider.generateCommitMessage(diff, changedFiles, zendaoPrompt);
-            }
-            
-            // 如果启用了后备功能，使用基于规则的生成
-            if (vscode.workspace.getConfiguration('aiMessage').get('enableFallback', true)) {
-                return this.generateFallbackMessage(diff, changedFiles);
-            }
-            
-            throw error;
-        }
-    }
-
-    private async getFallbackProvider(): Promise<AIProvider | null> {
-        const availableProviders = await AIProviderFactory.getAvailableProviders(this.config);
-        
-        // 优先级：Copilot > Ollama > 国产模型 > 自定义
-        const priorities = ['GitHub Copilot', 'Ollama', '通义千问', '文心一言', '智谱AI', '自定义API'];
-        
-        for (const priority of priorities) {
-            const provider = availableProviders.find(p => p.name === priority);
-            if (provider && provider !== this.provider) {
-                return provider;
-            }
-        }
-        
-        return null;
-    }
-
-    private generateFallbackMessage(diff: string, changedFiles: SvnFile[]): string {
-        // 基于规则的简单提交信息生成
-        const fileTypes = new Set(changedFiles.map(f => f.path.split('.').pop()?.toLowerCase()));
-        const operations = new Set(changedFiles.map(f => f.status));
-        
-        let type = 'chore';
-        let emoji = '🔧';
-        let scope = '';
-        let subject = '更新代码';
-        
-        // 根据文件类型推断
-        if (fileTypes.has('md')) {
-            type = 'docs';
-            emoji = '📝';
-            subject = '更新文档';
-        } else if (fileTypes.has('json') && changedFiles.some(f => f.path.includes('package.json'))) {
-            type = 'build';
-            emoji = '📦';
-            subject = '更新依赖配置';
-        } else if (operations.has('A')) {
-            type = 'feat';
-            emoji = '✨';
-            subject = '添加新文件';
-        } else if (operations.has('D')) {
-            type = 'chore';
-            emoji = '🔧';
-            subject = '删除文件';
-        } else if (operations.has('M')) {
-            type = 'fix';
-            emoji = '🐛';
-            subject = '修复问题';
-        }
-        
-        return `${emoji} ${type}(${scope || 'general'}): ${subject}`;
-    }
-
-    async getProviderStatus(): Promise<{ name: string; available: boolean; error?: string }[]> {
-        const config = AIProviderFactory.getConfigFromSettings();
-        const allProviders = [
-            new CopilotProvider(),
-            new OllamaProvider(config),
-            new QianwenProvider(config),
-            new WenxinProvider(config),
-            new ZhipuProvider(config),
-            new CustomProvider(config)
-        ];
-
-        const status: { name: string; available: boolean; error?: string }[] = [];
-
-        for (const provider of allProviders) {
-            try {
-                const available = await provider.isAvailable();
-                status.push({ name: provider.name, available });
-            } catch (error) {
-                status.push({
-                    name: provider.name,
-                    available: false,
-                    error: error instanceof Error ? error.message : '未知错误'
-                });
-            }
-        }
-
-        return status;
-    }
-
-    getCurrentProviderName(): string {
-        return this.provider?.name || '未配置';
-    }
+  }
 }
