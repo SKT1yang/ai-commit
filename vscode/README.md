@@ -2,6 +2,8 @@
 
 一个智能的VS Code扩展，支持多种AI模型为Git/SVN仓库生成专业的提交信息。支持GitHub Copilot、本地Ollama、通义千问、文心一言、智谱AI等多种AI提供商。
 
+> **注意**: 此项目是在 https://github.com/jianxiaofei/AI-message 的基础上fork并进行改造的版本。
+
 ## 功能特性
 
 - 🤖 **多AI支持**：支持GitHub Copilot、Ollama、通义千问、文心一言、智谱AI、自定义API
@@ -423,12 +425,43 @@ npm run compile
 ```
 ├── src/
 │   ├── extension.ts              # 主扩展入口
-│   ├── aiProviderFactory.ts      # AI提供商工厂
-│   ├── svnService.ts             # SVN操作服务
-│   ├── gitService.ts             # Git操作服务
-│   ├── providers/                # AI提供商实现
-│   └── test/                     # 测试文件
+│   ├── ai/
+│   │   ├── aiInterface.ts        # AI接口定义
+│   │   ├── aiProviderFactory.ts  # AI提供商工厂
+│   │   ├── aiService.ts          # AI服务主类
+│   │   ├── providers/            # 各AI提供商的具体实现
+│   │   │   ├── baseProvider.ts   # 基础提供商类
+│   │   │   ├── copilotProvider.ts # GitHub Copilot提供商
+│   │   │   ├── customProvider.ts # 自定义API提供商
+│   │   │   ├── ollamaProvider.ts # Ollama提供商
+│   │   │   ├── qianwenProvider.ts # 通义千问提供商
+│   │   │   ├── wenxinProvider.ts # 文心一言提供商
+│   │   │   └── zhipuProvider.ts  # 智谱AI提供商
+│   │   └── utils/                # AI相关工具函数
+│   │       ├── buildPrompt.ts    # 构建AI提示词
+│   │       ├── constants.ts      # 常量定义
+│   │       ├── enforceConventionalCommit.ts # 强制约定式提交
+│   │       ├── extractCommitMessage.ts # 提取提交消息
+│   │       ├── fetchWithTimeout.ts # 带超时的请求
+│   │       └── handleApiError.ts # 处理API错误
+│   ├── utils/
+│   │   ├── handleCommitMessageGenerated.ts # 处理生成的消息
+│   │   ├── handleError.ts        # 错误处理
+│   │   ├── setScmInputBoxValue.ts # 设置SCM输入框值
+│   │   └── showCommitMessagePreview.ts # 显示提交消息预览
+│   ├── vcs/
+│   │   ├── vcsInterface.ts       # 版本控制系统接口
+│   │   ├── vcsFactory.ts         # VCS工厂
+│   │   ├── gitService.ts         # Git操作服务
+│   │   └── svnService.ts         # SVN操作服务
+│   ├── zendao/
+│   │   ├── zendaoInterface.ts    # 禅道接口定义
+│   │   ├── zendaoResponse.ts     # 禅道响应格式
+│   │   ├── zentaoService.ts      # 禅道服务
+│   │   └── bug.json              # Bug相关配置
+│   └── extension.ts              # 主扩展入口
 ├── package.json                  # 扩展配置
+├── tsconfig.json                 # TypeScript配置
 └── README.md                     # 项目文档
 ```
 

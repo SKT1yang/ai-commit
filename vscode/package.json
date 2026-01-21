@@ -3,19 +3,19 @@
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
   "version": "0.0.46",
-  "publisher": "jianxiaofei",
+  "publisher": "yangguodong",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jianxiaofei/AI-message"
+    "url": "https://github.com/SKT1yang/ai-commit"
   },
-  "author": "jianxiaofei",
+  "author": "yangguodong",
   "license": "MIT",
-  "homepage": "https://github.com/jianxiaofei/AI-message#readme",
+  "homepage": "https://github.com/SKT1yang/ai-commit#readme",
   "bugs": {
-    "url": "https://github.com/jianxiaofei/AI-message/issues"
+    "url": "https://github.com/SKT1yang/ai-commit/issues"
   },
   "engines": {
-    "vscode": "^1.104.0"
+    "vscode": "^1.108.0"
   },
   "icon": "images/icon.png",
   "categories": [
