@@ -363,7 +363,7 @@
         },
         "aiMessage.zendao.commitTemplate": {
           "type": "string",
-          "default": "[BUG: {zendaoId}][MSG: {zendaoDescription}]\n{message}",
+          "default": "[{zendaoType}: {zendaoId}][MSG: {zendaoDescription}]\n{message}",
           "description": "配置禅道提交信息模板 (可选，用 {message} 占位符代表AI生成的信息，{zendaoType}表示任务类型， {zendaoId}表示禅道编号， {zendaoDescription}表示禅道任务描述)",
           "order": 17
         }

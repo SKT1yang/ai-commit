@@ -200,7 +200,7 @@ export function enforceConventionalCommit(
   }
 
   if (zendaoInfo?.type) {
-    result = result.replace(/{zendaoType}/g, zendaoInfo.type);
+    result = result.replace(/{zendaoType}/g, "BUG");
   }
 
   if (zendaoInfo?.description) {
