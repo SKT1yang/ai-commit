@@ -1,5 +1,6 @@
 import type { SvnFile } from "../../vcs/svnService";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
+import { outputChannel } from "../../utils/outputChannel";
 
 type BuildPromptFunction = (
   diff: string,
@@ -25,6 +26,8 @@ const buildPromptByChinese: BuildPromptFunction = (
   changedFiles,
   options,
 ) => {
+  outputChannel.appendLine(`[${new Date().toLocaleString()}] 获取中文提示词`);
+  outputChannel.appendLine(`[Zendao] 提示词生成前获取到的禅道数据 ${JSON.stringify(options?.zendaoInfo)}`);
   const { zendaoInfo, language = "中文" } = options || {};
 
   // 分析文件类型和变更类型

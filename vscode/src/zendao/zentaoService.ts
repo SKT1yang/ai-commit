@@ -1,5 +1,6 @@
 import { ZendaoConfig, ZendaoInfo } from "./zendaoInterface";
 import { ZendaoResponse } from "./zendaoResponse";
+import { outputChannel } from "../utils/outputChannel";
 
 export class ZentaoService {
   cookie: string;
@@ -26,6 +27,7 @@ export class ZentaoService {
       });
 
       // 发送登录请求
+      outputChannel.appendLine("[Zendao] 正在登录...");
       const response = await fetch(loginUrl, {
         method: "POST",
         headers: {
@@ -35,6 +37,9 @@ export class ZentaoService {
         },
         body,
       });
+        outputChannel.appendLine(
+          `[Zendao] 登录后: ${response.status} ${response.statusText}`,
+        );
 
       // 从响应中提取Cookie
       const setCookieHeader = response.headers.get("set-cookie");
@@ -91,7 +96,7 @@ export class ZentaoService {
 
     let zendaoInfo: ZendaoInfo = {
       shouldProcessZendao: false,
-      prompt: '',
+      prompt: "",
 
       id: bug.id,
       title: bug.title,
@@ -110,7 +115,7 @@ export class ZentaoService {
 
       description: response.title,
     };
-
+    outputChannel.appendLine(`[Zendao] 禅道信息: ${JSON.stringify(zendaoInfo)}`);
     return zendaoInfo;
   }
 

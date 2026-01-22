@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
+import { outputChannel } from "../../utils/outputChannel";
 
 // 规范化提交信息，强制符合 Conventional Commits 基础格式
 export function enforceConventionalCommit(
@@ -26,6 +27,7 @@ export function enforceConventionalCommit(
 
   // 从配置中获取模板
   let template = config.get<string>("commitTemplate", "");
+  let zenndaoTemplate = config.get<string>("zendao.commitTemplate", "");
 
   // 语言归一化
   function normalizeLanguage(lang: string | undefined): string {
@@ -175,34 +177,38 @@ export function enforceConventionalCommit(
 
   const message = finalHeader + (enableBody && body ? `\n\n${body}` : "");
 
-  if (!template) {
+  let finalTemplate = zendaoInfo?.shouldProcessZendao ? zenndaoTemplate : template;
+
+  if (!finalTemplate) {
     return message;
   }
 
   const finalLines = message.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  outputChannel.appendLine(`Final template: ${finalTemplate}`);
   if (finalLines.length > 0) {
-    template = template.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
+    finalTemplate = finalTemplate.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
   }
 
   // 替换模板中的占位符
-  template = template
+  let result = finalTemplate
     .replace(/{message}/g, message)
     .replace(/{header}/g, finalHeader)
     .replace(/{body}/g, body);
 
   if (zendaoInfo?.id) {
-    template = template.replace(/{zendaoId}/g, zendaoInfo.id);
+    result = result.replace(/{zendaoId}/g, zendaoInfo.id);
   }
 
   if (zendaoInfo?.type) {
-    template = template.replace(/{zendaoType}/g, zendaoInfo.type);
+    result = result.replace(/{zendaoType}/g, zendaoInfo.type);
   }
 
   if (zendaoInfo?.description) {
-    template = template.replace(/{zendaoDescription}/g, zendaoInfo.description);
+    result = result.replace(/{zendaoDescription}/g, zendaoInfo.description);
   }
 
-  return template;
+  outputChannel.appendLine(`[DEBUG] Final commit message result: ${result}`);
+  return result;
 }
 
 /**

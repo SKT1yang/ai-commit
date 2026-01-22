@@ -7,6 +7,7 @@ import { showCommitMessagePreview } from "./utils/showCommitMessagePreview";
 import { handleError } from "./utils/handleError";
 import { ZentaoService } from "./zendao/zentaoService";
 import type { ZendaoInfo } from "./zendao/zendaoInterface";
+import { outputChannel } from "./utils/outputChannel";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -120,6 +121,7 @@ async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
             zendaoInfo
           },
         );
+        outputChannel.appendLine(`[AI-Message] formatted value: ${formatted} / ${typeof formatted}`);
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
@@ -156,6 +158,7 @@ async function handleGenerateZendaoCommitMessage() {
         parseInt(editedMessage),
       );
       zendaoInfo.shouldProcessZendao = true;
+      outputChannel.appendLine(`[Zendao] 成功获取id和禅道信息：  ${editedMessage}`);
       handleGenerateCommitMessage(zendaoInfo);
     }
   } catch (error) {

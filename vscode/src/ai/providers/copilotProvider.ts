@@ -8,11 +8,11 @@ import { buildBasePrompt } from "../utils/buildPrompt";
 import { extractCommitMessage } from "../utils/extractCommitMessage";
 import { enforceConventionalCommit } from "../utils/enforceConventionalCommit";
 import { handleApiError } from "../utils/handleApiError";
+import { outputChannel } from "../../utils/outputChannel";
 
 /**
  * 流式生成提交信息并实时更新到SCM输入框
  */
-const outputChannel = vscode.window.createOutputChannel("AI Commit Stream");
 
 export class CopilotProvider extends BaseProvider {
   readonly name = PROVIDER_NAMES.COPILOT;

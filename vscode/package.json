@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.46",
+  "version": "0.0.47",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -15,7 +15,7 @@
     "url": "https://github.com/SKT1yang/ai-commit/issues"
   },
   "engines": {
-    "vscode": "1.108.0"
+    "vscode": "^1.104.0"
   },
   "icon": "images/icon.png",
   "categories": [
@@ -395,7 +395,7 @@
   "devDependencies": {
     "@types/vscode": "1.104.0",
     "@types/mocha": "10.0.10",
-    "@types/node": "22.x",
+    "@types/node": "25.0.10",
     "@typescript-eslint/eslint-plugin": "8.42.0",
     "@typescript-eslint/parser": "8.42.0",
     "eslint": "9.34.0",

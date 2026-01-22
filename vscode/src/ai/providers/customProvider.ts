@@ -7,6 +7,7 @@ import { extractCommitMessage } from "../utils/extractCommitMessage";
 import { enforceConventionalCommit } from "../utils/enforceConventionalCommit";
 import { handleApiError } from "../utils/handleApiError";
 import { fetchWithTimeout } from "../utils/fetchWithTimeout";
+import { outputChannel } from "../../utils/outputChannel";
 
 export class CustomProvider extends BaseProvider {
   readonly name = PROVIDER_NAMES.CUSTOM;
@@ -35,6 +36,7 @@ export class CustomProvider extends BaseProvider {
     const model = this.config?.customModel || "gpt-3.5-turbo";
     const prompt = buildBasePrompt(diff, changedFiles, options);
 
+    outputChannel.appendLine(`[Custom generateCommitMessage]: ${this.name}: ${prompt}`);
     try {
       const response = await fetchWithTimeout(
         this.config.customEndpoint,
@@ -100,6 +102,7 @@ export class CustomProvider extends BaseProvider {
         throw new Error(`${PROVIDER_NAMES.CUSTOM}返回了空响应`);
       }
 
+      outputChannel.appendLine(`[customProvider generateCommitMessage] ${PROVIDER_NAMES.ZHIPU} 响应: ${content}`);
       const raw = extractCommitMessage(content.trim());
       return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {

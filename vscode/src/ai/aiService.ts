@@ -3,6 +3,7 @@ import { AIProvider, AIConfig, StreamGenerateOptions, GenerateOptions } from "./
 import { SvnFile } from "../vcs/svnService";
 import { AIProviderFactory } from "./aiProviderFactory";
 import { FALLBACK_PRIORITIES, CONFIG_KEYS } from "./utils/constants";
+import { outputChannel } from "../utils/outputChannel";
 
 export class AIService {
   private provider: AIProvider | null = null;
@@ -89,6 +90,7 @@ export class AIService {
         options,
       );
     } catch (error) {
+      outputChannel.appendLine(`[AI Service] AI提供商 ${this.provider!.name} 错误: ${error}`); 
       console.error(`AI提供商 ${this.provider!.name} 生成失败:`, error);
       return await this.handleGenerationError(diff, changedFiles, options);
     }
