@@ -418,7 +418,7 @@ export class GitService implements IVersionControlService {
             return await execAsync(command, { 
                 cwd: this.workspaceRoot,
                 encoding: 'utf8',
-                maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+                maxBuffer: 1024 * 1024 * 500 // 500MB buffer
             });
         } catch (error: any) {
             console.error('Git命令执行失败:', error);
