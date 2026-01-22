@@ -102,7 +102,7 @@ export class CustomProvider extends BaseProvider {
         throw new Error(`${PROVIDER_NAMES.CUSTOM}返回了空响应`);
       }
 
-      outputChannel.appendLine(`[customProvider generateCommitMessage] ${PROVIDER_NAMES.ZHIPU} 响应: ${content}`);
+      outputChannel.appendLine(`[customProvider generateCommitMessage] ${PROVIDER_NAMES.CUSTOM} 响应: ${content}`);
       const raw = extractCommitMessage(content.trim());
       return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {

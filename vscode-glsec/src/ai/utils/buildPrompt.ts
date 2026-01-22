@@ -1,6 +1,7 @@
 import type { SvnFile } from "../../vcs/svnService";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
 import { outputChannel } from "../../utils/outputChannel";
+import { MAX_DIFF_CHARS, MAX_DIFF_FILES } from "../utils/constants";
 
 type BuildPromptFunction = (
   diff: string,
@@ -27,14 +28,16 @@ const buildPromptByChinese: BuildPromptFunction = (
   options,
 ) => {
   outputChannel.appendLine(`[${new Date().toLocaleString()}] 获取中文提示词`);
-  outputChannel.appendLine(`[Zendao] 提示词生成前获取到的禅道数据 ${JSON.stringify(options?.zendaoInfo)}`);
   const { zendaoInfo, language = "中文" } = options || {};
 
   // 分析文件类型和变更类型
   const fileAnalysis = analyzeChanges(changedFiles);
-  const filesDescription = changedFiles
-    .map((file) => `${file.path} (${getStatusDescription(file.status)})`)
-    .join("\n");
+  const filesDescription = buildFileDescriptionPrompt(changedFiles);
+
+  const diffPropmt = buildDiffPropmt(diff, changedFiles);
+  const zendaoPrompt = zendaoInfo?.shouldProcessZendao
+    ? buildZendaoPropmt(zendaoInfo)
+    : "";
 
   return `# AI Message Generator
 
@@ -43,16 +46,18 @@ const buildPromptByChinese: BuildPromptFunction = (
 **CRITICAL INSTRUCTION: 您必须严格遵循以下要求**
 
 1. 仅输出符合Conventional Commits规范的${language}提交信息
-1. 使用标准的 \`<emoji><type>(<scope>): <subject>\` 格式
-2. type必须是: feat, fix, docs, style, refactor, perf, test, chore, build, ci, i18n 之一
-3. subject必须简洁明了，不超过50个字符
-7. 不包含任何解释或附加文本
-2. 严格按照示例中显示的格式
-4. 必须用${language}描述
-5. 仅输出${language}的提交信息
-4. 技术术语和scope等术语使用英文
-6. 使用单行换行(\\n)，不要双行换行(\\n\\n)
-5. 最多16行，每行直接换行不要隔行
+2. 使用标准的 \`<emoji><type>(<scope>): <subject>\` 格式
+3. type必须是: feat, fix, docs, style, refactor, perf, test, chore, build, ci, i18n 之一
+4. subject必须简洁明了，不超过50个字符
+5. 不包含任何解释或附加文本
+6. 严格按照示例中显示的格式
+7. 必须用${language}描述
+8. 仅输出${language}的提交信息
+9. 技术术语和scope等术语使用英文
+10. 使用单行换行(\\n)，不要双行换行(\\n\\n)
+11. 最多16行，每行直接换行不要隔行
+12. 文件差异过大或者文件数量过多时，包含一行代码差异过大提交说明或猜测
+
 
 ## 必须执行的操作 (MUST DO)
 
@@ -61,10 +66,10 @@ const buildPromptByChinese: BuildPromptFunction = (
 3. **确定变更类型**: 基于实际变更内容选择最合适的提交类型
 4. **评估影响范围**: 考虑对现有逻辑、数据结构或外部API的影响
 5. **识别风险和依赖**: 确定是否需要额外的文档、测试或存在潜在风险
-4. **限制语言**: 所有内容均使用${language}，仅在 scope 和技术术语中使用英语
-5. **限制格式**: 严格遵循示例所示的格式模板
-7. **限制表情符号**: 包含适当的emoji表情符号
-8. **保证每个文件一个提交信息**: 为每个文件创建单独的提交信息
+6. **限制语言**: 所有内容均使用${language}，仅在 scope 和技术术语中使用英语
+7. **限制格式**: 严格遵循示例所示的格式模板
+8. **限制表情符号**: 包含适当的emoji表情符号
+9. **保证每个文件一个提交信息**: 为每个文件创建单独的提交信息
 
 ## 禁止操作 (MUST NOT DO)
 
@@ -141,13 +146,9 @@ ${filesDescription}
 
 ${fileAnalysis}
 
-## 代码差异
+${diffPropmt}
 
-\`\`\`diff
-${diff}
-\`\`\`
-
-${zendaoInfo?.shouldProcessZendao ? buildZendaoPropmt(zendaoInfo) : ""}
+${zendaoPrompt}
 
 ## 输出示例
 
@@ -214,7 +215,7 @@ function getStatusDescription(status: string): string {
     "~": "类型变更",
   };
 
-  return statusMap[status] || "未知状态";
+  return statusMap[status] || status || "未知状态";
 }
 
 /**
@@ -282,7 +283,7 @@ function getFileTypeDescription(ext: string): string {
 function buildZendaoPropmt(zendaoInfo: ZendaoInfo) {
   return `## 禅道关联信息
   
-  缺陷ID: ${zendaoInfo.id}
+缺陷ID: ${zendaoInfo.id}
 标题: ${zendaoInfo.title}
 状态: ${zendaoInfo.status}
 指派给: ${zendaoInfo.assignedTo}
@@ -296,4 +297,30 @@ function buildZendaoPropmt(zendaoInfo: ZendaoInfo) {
 模块: ${zendaoInfo.module}
 重现步骤: ${zendaoInfo.steps}
 描述: ${zendaoInfo.description}`;
+}
+
+function buildDiffPropmt(diff: string, changedFiles: SvnFile[]) {
+  return `## 代码差异
+
+${diff.length > MAX_DIFF_CHARS ? `代码差异过大, 只截取部分内容: \n` : ""}
+\`\`\`diff
+${diff.length > MAX_DIFF_CHARS ? diff.slice(0, 9000) : diff}
+\`\`\``;
+}
+
+function buildFileDescriptionPrompt(changedFiles: SvnFile[]) {
+  let files =
+    changedFiles.length > MAX_DIFF_FILES
+      ? changedFiles.slice(0, MAX_DIFF_FILES)
+      : changedFiles;
+  let description = files
+    .map(
+      (file) => `${file.path} (${getStatusDescription(file.status)})`,
+    )
+    .join("\n");
+  description =
+    files.length > MAX_DIFF_FILES
+      ? `文件数量差异过大，只展示${files.length}个文件差异信息：${description}`
+      : description;
+  return description;
 }

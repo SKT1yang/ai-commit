@@ -8,6 +8,7 @@ import { handleError } from "./utils/handleError";
 import { ZentaoService } from "./zendao/zentaoService";
 import type { ZendaoInfo } from "./zendao/zendaoInterface";
 import { outputChannel } from "./utils/outputChannel";
+import { isPositiveInteger } from "./utils";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -58,7 +59,7 @@ function registerCommands(context: vscode.ExtensionContext) {
 // handleGenerateCommitMessage
 // ====================================================================================
 
-async function handleGenerateCommitMessage(zendaoInfo: ZendaoInfo) {
+async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
   try {
     await unifiedGenerateCommit(zendaoInfo);
   } catch (error) {
@@ -67,7 +68,7 @@ async function handleGenerateCommitMessage(zendaoInfo: ZendaoInfo) {
 }
 
 // 统一的提交信息生成流程（带流式 & 回退 & 格式化）
-async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
+async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -106,7 +107,7 @@ async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
         await aiService.generateCommitMessageWithStream(changes, changedFiles, {
           progress,
           fallbackToOutput: !scmWritable,
-          zendaoInfo
+          zendaoInfo,
         });
         progress.report({ increment: 100, message: "完成" });
         vscode.window.showInformationMessage("✅ 提交信息已生成");
@@ -118,10 +119,12 @@ async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
           changes,
           changedFiles,
           {
-            zendaoInfo
+            zendaoInfo,
           },
         );
-        outputChannel.appendLine(`[AI-Message] formatted value: ${formatted} / ${typeof formatted}`);
+        outputChannel.appendLine(
+          `[AI-Message] formatted value: ${formatted} / ${typeof formatted}`,
+        );
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
@@ -144,22 +147,26 @@ async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
 
 async function handleGenerateZendaoCommitMessage() {
   try {
-    const editedMessage = await vscode.window.showInputBox({
+    const idString = await vscode.window.showInputBox({
       title: "请输入禅道Bug或任务编号",
       value: "",
       prompt: "输入编号后按回车生成提交信息",
       ignoreFocusOut: true,
     });
 
-    if (editedMessage !== undefined && editedMessage.trim().length > 0) {
+    if (idString && isPositiveInteger(idString)) {
       const zendaoService = new ZentaoService();
       await zendaoService.login();
       const zendaoInfo = await zendaoService.buildZendaoInfo(
-        parseInt(editedMessage),
+        parseInt(idString),
       );
       zendaoInfo.shouldProcessZendao = true;
-      outputChannel.appendLine(`[Zendao] 成功获取id和禅道信息：  ${editedMessage}`);
       handleGenerateCommitMessage(zendaoInfo);
+    } else {
+      outputChannel.appendLine(
+        `[Zendao] 获取禅道信息失败,执行基础提交信息生成`,
+      );
+      handleGenerateCommitMessage();
     }
   } catch (error) {
     await handleError("编辑提交信息时发生错误", error);

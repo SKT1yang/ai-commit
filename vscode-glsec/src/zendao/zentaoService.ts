@@ -60,6 +60,7 @@ export class ZentaoService {
   async buildZendaoInfo(id: number): Promise<ZendaoInfo> {
     const response = await this.getBugById(id);
     const bug = response?.bug ?? {};
+    outputChannel.appendLine(`[Zendao]: 构建ZendaoInfo：${JSON.stringify(bug, null, 2)}`);
 
     let productName = "";
     if (response.products) {
@@ -133,13 +134,17 @@ export class ZentaoService {
     }
 
     try {
-      const createUrl = `http://${this.config.host}/bug-view-${bugId}.json`;
+      const url = `http://${this.config.host}/bug-view-${bugId}.json`;
+      outputChannel.appendLine(`[ZendaoService]: fetchBugInfo config: ${JSON.stringify(this.config)}`);
+      outputChannel.appendLine(`Fetching bug info from url: ${url}`);
+      outputChannel.appendLine(`Cookie: ${this.cookie}`);
 
-      const response: Response = await fetch(createUrl, {
+
+      const response: Response = await fetch(url, {
         method: "GET",
         headers: {
           ...this.getHeaders(this.config.host),
-          "Content-Type": "application/x-www-form-urlencoded",
+          "Content-Type": "application/json; charset=UTF-8",
           Referer: `http://${this.config.host}/bug.json`,
           Cookie: this.cookie,
         },
@@ -151,6 +156,7 @@ export class ZentaoService {
       }
 
       const text = await response.text(); // 获取原始文本
+      outputChannel.appendLine(`[Zendao] 获取bug原始文本信息：${text}`);
       const json = JSON.parse(text);
       const decodedJson = this.decodeChinese(json); // 解码中文
       return JSON.parse(decodedJson.data) as ZendaoResponse;

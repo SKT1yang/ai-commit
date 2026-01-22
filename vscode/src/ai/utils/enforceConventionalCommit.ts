@@ -177,12 +177,22 @@ export function enforceConventionalCommit(
 
   const message = finalHeader + (enableBody && body ? `\n\n${body}` : "");
 
-  let finalTemplate = zendaoInfo?.shouldProcessZendao ? zenndaoTemplate : template;
+  let finalTemplate = zendaoInfo?.shouldProcessZendao
+    ? zenndaoTemplate
+    : template;
 
   if (!finalTemplate) {
     return message;
   }
 
+  // 禅道数据异常，模版直接实效，则使用message作为模版
+  if (
+    zendaoInfo?.shouldProcessZendao &&
+    zenndaoTemplate &&
+    !zendaoInfo.description
+  ) {
+    return message;
+  }
   const finalLines = message.split(/\r?\n/).filter((l) => l.trim().length > 0);
   outputChannel.appendLine(`Final template: ${finalTemplate}`);
   if (finalLines.length > 0) {

@@ -5,7 +5,7 @@ export const PROVIDER_NAMES = {
   QIANWEN: "通义千问",
   WENXIN: "文心一言",
   ZHIPU: "智谱AI",
-  CUSTOM: "自定义API"
+  CUSTOM: "自定义API",
 } as const;
 
 export const FALLBACK_PRIORITIES = [
@@ -14,7 +14,7 @@ export const FALLBACK_PRIORITIES = [
   PROVIDER_NAMES.QIANWEN,
   PROVIDER_NAMES.WENXIN,
   PROVIDER_NAMES.ZHIPU,
-  PROVIDER_NAMES.CUSTOM
+  PROVIDER_NAMES.CUSTOM,
 ] as const;
 
 export const CONFIG_KEYS = {
@@ -33,12 +33,15 @@ export const CONFIG_KEYS = {
     ZHIPU_MODEL: "ai.zhipuModel",
     CUSTOM_ENDPOINT: "ai.customEndpoint",
     CUSTOM_API_KEY: "ai.customApiKey",
-    CUSTOM_MODEL: "ai.customModel"
+    CUSTOM_MODEL: "ai.customModel",
   },
   COMMIT: {
     ENABLE_EMOJI: "commit.enableEmoji",
     ENABLE_BODY: "commit.enableBody",
     ENABLE_SCOPE: "commit.enableScope",
-    LANGUAGE: "commit.language"
-  }
+    LANGUAGE: "commit.language",
+  },
 } as const;
+
+export const MAX_DIFF_CHARS = 1024 * 200;
+export const MAX_DIFF_FILES = 1000;
