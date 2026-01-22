@@ -1,4 +1,5 @@
 import type { SvnFile } from "../../vcs/svnService";
+import type { ZendaoInfo } from "../../zendao/zendaoInterface";
 
 type BuildPromptFunction = (
   diff: string,
@@ -7,7 +8,7 @@ type BuildPromptFunction = (
 ) => string;
 
 type PromptOptions = {
-  zendaoPrompt?: string;
+  zendaoInfo?: ZendaoInfo;
   language?: string;
 };
 
@@ -24,7 +25,7 @@ const buildPromptByChinese: BuildPromptFunction = (
   changedFiles,
   options,
 ) => {
-  const { zendaoPrompt, language = "中文" } = options || {};
+  const { zendaoInfo, language = "中文" } = options || {};
 
   // 分析文件类型和变更类型
   const fileAnalysis = analyzeChanges(changedFiles);
@@ -143,9 +144,7 @@ ${fileAnalysis}
 ${diff}
 \`\`\`
 
-## 禅道关联信息
-
-${zendaoPrompt ? zendaoPrompt : ""}
+${zendaoInfo?.shouldProcessZendao ? buildZendaoPropmt(zendaoInfo) : ""}
 
 ## 输出示例
 
@@ -236,10 +235,7 @@ function analyzeChanges(changedFiles: SvnFile[]): string {
 
   const fileTypeAnalysis = Object.entries(fileTypes)
     .sort(([, a], [, b]) => b.length - a.length)
-    .map(
-      ([ext, files]) =>
-        `${getFileTypeDescription(ext)}: ${files.length}个`,
-    )
+    .map(([ext, files]) => `${getFileTypeDescription(ext)}: ${files.length}个`)
     .join(", ");
 
   analysis.push(`**文件类型分布**: ${fileTypeAnalysis}`);
@@ -278,4 +274,23 @@ function getFileTypeDescription(ext: string): string {
     unknown: "其他",
   };
   return typeMap[ext] || ext.toUpperCase();
+}
+
+function buildZendaoPropmt(zendaoInfo: ZendaoInfo) {
+  return `## 禅道关联信息
+  
+  缺陷ID: ${zendaoInfo.id}
+标题: ${zendaoInfo.title}
+状态: ${zendaoInfo.status}
+指派给: ${zendaoInfo.assignedTo}
+创建人: ${zendaoInfo.openedBy}
+创建日期: ${zendaoInfo.openedDate}
+最后编辑日期: ${zendaoInfo.lastEditedDate}
+类型: ${zendaoInfo.type}
+严重性: ${zendaoInfo.severity}
+优先级: ${zendaoInfo.priority}
+产品: ${zendaoInfo.product}
+模块: ${zendaoInfo.module}
+重现步骤: ${zendaoInfo.steps}
+描述: ${zendaoInfo.description}`;
 }

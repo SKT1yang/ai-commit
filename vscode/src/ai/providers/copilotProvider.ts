@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import type { StreamOptions } from "../aiInterface";
+import type { StreamGenerateOptions } from "../aiInterface";
 import type { SvnFile } from "../../vcs/svnService";
 import { setScmInputBoxValue } from "../../utils/setScmInputBoxValue";
 import { BaseProvider } from "./baseProvider";
@@ -47,12 +47,12 @@ export class CopilotProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: StreamGenerateOptions,
   ): Promise<string> {
     try {
       let model = await this.getAvailableModel();
 
-      const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+      const prompt = buildBasePrompt(diff, changedFiles, options);
       const messages = [vscode.LanguageModelChatMessage.User(prompt)];
 
       const response = await model.sendRequest(
@@ -66,7 +66,7 @@ export class CopilotProvider extends BaseProvider {
         result += fragment;
       }
       const raw = extractCommitMessage(result.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff);
+      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.COPILOT);
     }
@@ -75,15 +75,13 @@ export class CopilotProvider extends BaseProvider {
   async generateCommitMessageWithStream(
     diff: string,
     changedFiles: SvnFile[],
-    options?: StreamOptions,
+    options?: StreamGenerateOptions,
   ): Promise<string> {
     try {
       let model = await this.getAvailableModel();
 
       // 构建提示信息
-      const prompt = buildBasePrompt(diff, changedFiles, {
-        zendaoPrompt: options?.zendaoPrompt,
-      });
+      const prompt = buildBasePrompt(diff, changedFiles, options);
       const messages = [vscode.LanguageModelChatMessage.User(prompt)];
 
       // 开始流式请求
@@ -171,7 +169,7 @@ export class CopilotProvider extends BaseProvider {
         }
         // 提取提交信息（去掉可能的前缀和格式）
         const raw = extractCommitMessage(result.trim());
-        const formatted = enforceConventionalCommit(raw, changedFiles, diff);
+        const formatted = enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
         const finalOk = await setScmInputBoxValue(formatted);
         if (!finalOk && options?.fallbackToOutput) {
           outputChannel.show(true);

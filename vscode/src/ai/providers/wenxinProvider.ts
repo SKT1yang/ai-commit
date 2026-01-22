@@ -1,4 +1,4 @@
-import { AIConfig } from "../aiInterface";
+import { AIConfig, GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 import { BaseProvider } from "./baseProvider";
 import { PROVIDER_NAMES } from "../utils/constants";
@@ -24,7 +24,7 @@ export class WenxinProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     if (!this.config?.wenxinApiKey || !this.config?.wenxinSecretKey) {
       throw new Error(`请配置${PROVIDER_NAMES.WENXIN} API Key和Secret Key`);
@@ -33,7 +33,7 @@ export class WenxinProvider extends BaseProvider {
     try {
       const accessToken = await this.getAccessToken();
       const model = this.config?.wenxinModel || "ernie-3.5-8k";
-      const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+      const prompt = buildBasePrompt(diff, changedFiles, options);
 
       // 根据模型确定API端点
       const modelEndpoints: { [key: string]: string } = {
@@ -88,7 +88,7 @@ export class WenxinProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(data.result.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff);
+      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.WENXIN);
     }

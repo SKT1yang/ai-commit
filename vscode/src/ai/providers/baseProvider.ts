@@ -1,4 +1,4 @@
-import { AIProvider, AIConfig } from "../aiInterface";
+import { AIProvider, AIConfig,GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 
 export abstract class BaseProvider implements AIProvider {
@@ -14,6 +14,6 @@ export abstract class BaseProvider implements AIProvider {
   abstract generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string>;
 }

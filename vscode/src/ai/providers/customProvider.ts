@@ -1,4 +1,4 @@
-import { AIConfig } from "../aiInterface";
+import { AIConfig, GenerateOptions } from "../aiInterface";
 import { BaseProvider } from "./baseProvider";
 import { SvnFile } from "../../vcs/svnService";
 import { PROVIDER_NAMES } from "../utils/constants";
@@ -22,7 +22,7 @@ export class CustomProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     if (!this.config?.customEndpoint) {
       throw new Error(`请配置${PROVIDER_NAMES.CUSTOM}接口地址`);
@@ -33,7 +33,7 @@ export class CustomProvider extends BaseProvider {
     }
 
     const model = this.config?.customModel || "gpt-3.5-turbo";
-    const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+    const prompt = buildBasePrompt(diff, changedFiles, options);
 
     try {
       const response = await fetchWithTimeout(
@@ -101,7 +101,7 @@ export class CustomProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(content.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff);
+      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.CUSTOM);
     }

@@ -1,3 +1,4 @@
+import { title } from "process";
 import * as vscode from "vscode";
 
 export class ZendaoConfig {
@@ -17,6 +18,10 @@ export class ZendaoConfig {
 
   get password(): string {
     return this.config.get("password", "");
+  }
+
+  get commitTemplate(): string {
+    return this.config.get("commitTemplate", "");
   }
 
   get isValid(): boolean {
@@ -126,6 +131,28 @@ export class ZendaoConfig {
 
     return true;
   }
+}
+
+export interface ZendaoInfo {
+  shouldProcessZendao: boolean; // 是否执行禅道逻辑
+  prompt?: string; // 提示词
+
+  id?: string; // Bug ID 或任务 ID
+  title?: string; // 标题
+  status?: string; // 状态 "active", "resolved", "closed"
+  assignedTo?: string; // 指派给
+  openedBy?: string; // 创建人
+  openedDate?: string; // 创建时间
+  lastEditedDate?: string; // 最后编辑时间
+  steps?: string; // 重现步骤
+
+  product?: string; // 所属产品： 工业安全综合管理平台
+  module?: string; // 所属模块： 策略管理 -> 工控安全审计
+  type?: string; // Bug 类型："function", "performance", "security", "usability", "interface", "compatibility", "other"
+  severity?: string; // 严重程度 "1", "2", "3", "4", "5"; "3":一般
+  priority?: string; // 优先级 "1", "2", "3", "4", "5"
+
+  description?: string; // 精简描述: BUG #17963  广利核维护平台V1.3：流量分析页面，日流量趋势和时流量趋势图，点击图例后，鼠标放置在图上，图会卡住，刷新后复原 - 工业安全综合管理平台
 }
 
 // // 使用示例

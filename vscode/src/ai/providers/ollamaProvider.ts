@@ -1,4 +1,4 @@
-import { AIConfig } from "../aiInterface";
+import { AIConfig, GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 import { BaseProvider } from "./baseProvider";
 import { PROVIDER_NAMES } from "../utils/constants";
@@ -35,12 +35,12 @@ export class OllamaProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     const endpoint = this.config?.ollamaEndpoint || "http://localhost:11434";
     const model = this.config?.ollamaModel || "qwen2.5:7b";
 
-    const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+    const prompt = buildBasePrompt(diff, changedFiles, options);
 
     try {
       const response = await fetchWithTimeout(
@@ -77,7 +77,7 @@ export class OllamaProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(data.response.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff);
+      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.OLLAMA);
     }

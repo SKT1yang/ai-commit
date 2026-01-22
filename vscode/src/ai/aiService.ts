@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { AIProvider, AIConfig, StreamOptions } from "./aiInterface";
+import { AIProvider, AIConfig, StreamGenerateOptions, GenerateOptions } from "./aiInterface";
 import { SvnFile } from "../vcs/svnService";
 import { AIProviderFactory } from "./aiProviderFactory";
 import { FALLBACK_PRIORITIES, CONFIG_KEYS } from "./utils/constants";
@@ -78,7 +78,7 @@ export class AIService {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     await this.ensureProviderAvailable();
 
@@ -86,11 +86,11 @@ export class AIService {
       return await this.provider!.generateCommitMessage(
         diff,
         changedFiles,
-        zendaoPrompt,
+        options,
       );
     } catch (error) {
       console.error(`AI提供商 ${this.provider!.name} 生成失败:`, error);
-      return await this.handleGenerationError(diff, changedFiles, zendaoPrompt);
+      return await this.handleGenerationError(diff, changedFiles, options);
     }
   }
 
@@ -100,7 +100,7 @@ export class AIService {
   async generateCommitMessageWithStream(
     diff: string,
     changedFiles: SvnFile[],
-    options: StreamOptions,
+    options: StreamGenerateOptions,
   ): Promise<string> {
     await this.ensureProviderAvailable();
 
@@ -136,7 +136,9 @@ export class AIService {
   /**
    * 尽可能找出支持流式生成的提供者
    */
-  async getStreamCapableProvider(excludeNames?: string[]): Promise<AIProvider | null> {
+  async getStreamCapableProvider(
+    excludeNames?: string[],
+  ): Promise<AIProvider | null> {
     const availableProviders = await AIProviderFactory.getAvailableProviders(
       this.config,
     );
@@ -191,7 +193,7 @@ export class AIService {
   private async handleGenerationError(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     // 尝试备用提供者
     const fallbackProvider = await this.getFallbackProvider();
@@ -201,7 +203,7 @@ export class AIService {
         return await fallbackProvider.generateCommitMessage(
           diff,
           changedFiles,
-          zendaoPrompt,
+          options,
         );
       } catch (fallbackError) {
         console.error("备用提供商生成失败:", fallbackError);

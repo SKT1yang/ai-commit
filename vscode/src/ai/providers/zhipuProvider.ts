@@ -1,4 +1,4 @@
-import { AIConfig } from "../aiInterface";
+import { AIConfig, GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 import { BaseProvider } from "./baseProvider";
 import { PROVIDER_NAMES } from "../utils/constants";
@@ -22,14 +22,14 @@ export class ZhipuProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     if (!this.config?.zhipuApiKey) {
       throw new Error(`请配置${PROVIDER_NAMES.ZHIPU} API Key`);
     }
 
     const model = this.config?.zhipuModel || "glm-4";
-    const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+    const prompt = buildBasePrompt(diff, changedFiles, options);
 
     try {
       const response = await fetchWithTimeout(
@@ -85,7 +85,7 @@ export class ZhipuProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(content.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff);
+      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.ZHIPU);
     }

@@ -1,11 +1,12 @@
 import * as vscode from "vscode";
-
+import type { ZendaoInfo } from "../../zendao/zendaoInterface";
 
 // 规范化提交信息，强制符合 Conventional Commits 基础格式
 export function enforceConventionalCommit(
   raw: string,
   changedFiles?: any[],
   diff?: string,
+  zendaoInfo?: ZendaoInfo,
 ): string {
   const config = vscode.workspace.getConfiguration("aiMessage");
   const enableEmoji = config.get(
@@ -183,13 +184,26 @@ export function enforceConventionalCommit(
     template = template.replace(/\\n/g, "\n").replace(/\\r/g, "\r");
   }
 
-  // 替换模板中的 {message} 占位符
-  return template
+  // 替换模板中的占位符
+  template = template
     .replace(/{message}/g, message)
     .replace(/{header}/g, finalHeader)
     .replace(/{body}/g, body);
-}
 
+  if (zendaoInfo?.id) {
+    template = template.replace(/{zendaoId}/g, zendaoInfo.id);
+  }
+
+  if (zendaoInfo?.type) {
+    template = template.replace(/{zendaoType}/g, zendaoInfo.type);
+  }
+
+  if (zendaoInfo?.description) {
+    template = template.replace(/{zendaoDescription}/g, zendaoInfo.description);
+  }
+
+  return template;
+}
 
 /**
  * 智能分析diff内容生成详细的body描述
@@ -267,7 +281,6 @@ function generateIntelligentBody(
 
   return bodyLines.join("\n");
 }
-
 
 /**
  * 生成基础body内容（回退方案）

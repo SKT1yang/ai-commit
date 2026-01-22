@@ -1,4 +1,4 @@
-import { ZendaoConfig } from "./zendaoInterface";
+import { ZendaoConfig, ZendaoInfo } from "./zendaoInterface";
 import { ZendaoResponse } from "./zendaoResponse";
 
 export class ZentaoService {
@@ -52,41 +52,26 @@ export class ZentaoService {
     }
   }
 
-  async buildZendaoPrompt(bugId: number): Promise<string> {
-    const bugInfo = await this.getBugById(bugId);
-
-    // id: string; // Bug ID 或任务 ID
-    // title: string; // 标题
-    // status: string; // 状态 "active", "resolved", "closed"
-    // assignedTo: string; // 指派给
-    // openedBy: string; // 创建人
-    // openedDate: string; // 创建时间
-    // lastEditedDate: string; // 最后编辑时间
-    // steps: string; // 重现步骤
-
-    // product: string; // 所属产品： 工业安全综合管理平台
-    // module: string; // 所属模块： 策略管理 -> 工控安全审计
-    // type: string; // Bug 类型："function", "performance", "security", "usability", "interface", "compatibility", "other"
-    // severity: string; // 严重程度 "1", "2", "3", "4", "5"; "3":一般
-    // priority: string; // 优先级 "1", "2", "3", "4", "5"
-
-    // description: string; // 精简描述: BUG #17963  广利核维护平台V1.3：流量分析页面，日流量趋势和时流量趋势图，点击图例后，鼠标放置在图上，图会卡住，刷新后复原 - 工业安全综合管理平台
+  async buildZendaoInfo(id: number): Promise<ZendaoInfo> {
+    const response = await this.getBugById(id);
+    const bug = response?.bug ?? {};
 
     let productName = "";
-    bugInfo.products &&
-      Object.keys(bugInfo.products).forEach((key) => {
-        if (key === bugInfo.productID) {
+    if (response.products) {
+      Object.keys(response.products).forEach((key) => {
+        if (key === response.productID) {
           // 找到匹配的产品ID，获取产品名称
-          productName = bugInfo.products[key];
+          productName = response.products[key];
         }
       });
+    }
 
-    let module = (bugInfo?.modulePath ?? [])
+    let module = (response?.modulePath ?? [])
       .map((mod) => mod.name)
       .join(" -> ");
 
     let security = "";
-    switch (bugInfo?.bug?.severity) {
+    switch (bug?.severity) {
       case "1":
         security = "致命";
         break;
@@ -104,20 +89,29 @@ export class ZentaoService {
         break;
     }
 
-    return `缺陷ID: ${bugInfo?.bug.id}
-标题: ${bugInfo?.bug.title}
-状态: ${bugInfo?.bug.status}
-指派给: ${bugInfo?.bug.assignedTo}
-创建人: ${bugInfo?.bug.openedBy}
-创建日期: ${bugInfo?.bug.openedDate}
-最后编辑日期: ${bugInfo?.bug.lastEditedDate}
-类型: ${bugInfo?.bug.type}
-严重性: ${bugInfo?.bug.severity}
-优先级: ${bugInfo?.bug.pri}
-产品: ${productName}
-模块: ${module}
-重现步骤: ${bugInfo?.bug.steps}
-描述: ${bugInfo?.title}`;
+    let zendaoInfo: ZendaoInfo = {
+      shouldProcessZendao: false,
+      prompt: '',
+
+      id: bug.id,
+      title: bug.title,
+      status: bug.status,
+      assignedTo: bug.assignedTo,
+      openedBy: bug.openedBy,
+      openedDate: bug.openedDate,
+      lastEditedDate: bug.lastEditedDate,
+      type: bug.type,
+      severity: security,
+      priority: bug.pri,
+      steps: bug.steps,
+
+      product: productName,
+      module,
+
+      description: response.title,
+    };
+
+    return zendaoInfo;
   }
 
   async getBugById(bugId: number): Promise<ZendaoResponse> {

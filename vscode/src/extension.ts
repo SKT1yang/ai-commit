@@ -6,6 +6,7 @@ import { setScmInputBoxValue } from "./utils/setScmInputBoxValue";
 import { showCommitMessagePreview } from "./utils/showCommitMessagePreview";
 import { handleError } from "./utils/handleError";
 import { ZentaoService } from "./zendao/zentaoService";
+import type { ZendaoInfo } from "./zendao/zendaoInterface";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -56,16 +57,16 @@ function registerCommands(context: vscode.ExtensionContext) {
 // handleGenerateCommitMessage
 // ====================================================================================
 
-async function handleGenerateCommitMessage(zendaoPrompt?: string) {
+async function handleGenerateCommitMessage(zendaoInfo: ZendaoInfo) {
   try {
-    await unifiedGenerateCommit(zendaoPrompt);
+    await unifiedGenerateCommit(zendaoInfo);
   } catch (error) {
     await handleError("生成提交信息时发生错误", error);
   }
 }
 
 // 统一的提交信息生成流程（带流式 & 回退 & 格式化）
-async function unifiedGenerateCommit(zendaoPrompt?: string) {
+async function unifiedGenerateCommit(zendaoInfo: ZendaoInfo) {
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -104,7 +105,7 @@ async function unifiedGenerateCommit(zendaoPrompt?: string) {
         await aiService.generateCommitMessageWithStream(changes, changedFiles, {
           progress,
           fallbackToOutput: !scmWritable,
-          zendaoPrompt
+          zendaoInfo
         });
         progress.report({ increment: 100, message: "完成" });
         vscode.window.showInformationMessage("✅ 提交信息已生成");
@@ -115,7 +116,9 @@ async function unifiedGenerateCommit(zendaoPrompt?: string) {
         const formatted = await aiService.generateCommitMessage(
           changes,
           changedFiles,
-          zendaoPrompt
+          {
+            zendaoInfo
+          },
         );
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
@@ -148,9 +151,12 @@ async function handleGenerateZendaoCommitMessage() {
 
     if (editedMessage !== undefined && editedMessage.trim().length > 0) {
       const zendaoService = new ZentaoService();
-       await zendaoService.login();
-      const prompt = await zendaoService.buildZendaoPrompt(parseInt(editedMessage));
-      handleGenerateCommitMessage(prompt);
+      await zendaoService.login();
+      const zendaoInfo = await zendaoService.buildZendaoInfo(
+        parseInt(editedMessage),
+      );
+      zendaoInfo.shouldProcessZendao = true;
+      handleGenerateCommitMessage(zendaoInfo);
     }
   } catch (error) {
     await handleError("编辑提交信息时发生错误", error);

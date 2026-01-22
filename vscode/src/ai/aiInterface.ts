@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { SvnFile } from "../vcs/svnService";
+import type { ZendaoInfo } from "../zendao/zendaoInterface";
 
 export interface AIProvider {
   readonly name: string;
@@ -7,19 +8,25 @@ export interface AIProvider {
   generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: {
+      zendaoInfo?: ZendaoInfo;
+    },
   ): Promise<string>;
   generateCommitMessageWithStream?(
     diff: string,
     changedFiles: SvnFile[],
-    options?: StreamOptions
+    options?: StreamGenerateOptions,
   ): Promise<string>;
 }
 
-export interface StreamOptions {
+export interface StreamGenerateOptions {
   fallbackToOutput?: boolean; // 当SCM输入框不可写时，是否回退到输出通道
-  zendaoPrompt?: string; // 禅道提示词
-  progress: vscode.Progress<{ increment?: number; message?: string }>,
+  zendaoInfo?: ZendaoInfo;
+  progress: vscode.Progress<{ increment?: number; message?: string }>;
+}
+
+export interface GenerateOptions {
+  zendaoInfo?: ZendaoInfo;
 }
 
 export interface AIConfig {

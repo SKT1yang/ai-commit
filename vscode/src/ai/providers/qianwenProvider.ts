@@ -1,4 +1,4 @@
-import { AIConfig } from "../aiInterface";
+import { AIConfig, GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 import { BaseProvider } from "./baseProvider";
 import { PROVIDER_NAMES } from "../utils/constants";
@@ -22,14 +22,14 @@ export class QianwenProvider extends BaseProvider {
   async generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    zendaoPrompt?: string,
+    options?: GenerateOptions,
   ): Promise<string> {
     if (!this.config?.qianwenApiKey) {
       throw new Error(`请配置${PROVIDER_NAMES.QIANWEN} API Key`);
     }
 
     const model = this.config?.qianwenModel || "qwen-plus";
-    const prompt = buildBasePrompt(diff, changedFiles, { zendaoPrompt });
+    const prompt = buildBasePrompt(diff, changedFiles, options);
 
     try {
       const response = await fetchWithTimeout(
@@ -96,6 +96,7 @@ export class QianwenProvider extends BaseProvider {
         extractCommitMessage(content),
         changedFiles,
         diff,
+        options?.zendaoInfo
       );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.QIANWEN);
