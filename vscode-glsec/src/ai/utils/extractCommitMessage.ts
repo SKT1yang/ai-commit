@@ -1,5 +1,18 @@
 /**
- * 提取和清理AI响应的提交信息
+ * 提取和清理AI响应的提交信息，
+ * 目标是从响应中提取出符合Conventional Commits格式的提交信息。
+ * 由于AI的响应可能包含解释性文本、代码块标记等，我们需要清理这些内容。
+ * 同时，我们也要确保提交信息有正确的格式，比如包含emoji和类型
+ * 
+ * 主要功能
+ * 
+ * 清理响应文本：移除引号、Markdown代码块标记等格式标记
+
+ * 过滤解释性文本：移除AI响应的前缀说明文字
+
+ * 格式标准化：确保提交信息包含正确的emoji符号
+
+ * 内容筛选：过滤掉不必要的总结性描述
  */
 export function extractCommitMessage(response: string): string {
   // 清理响应 - 移除引号和多余空格
@@ -154,16 +167,6 @@ function ensureCorrectEmoji(line: string): string {
   }
 
   return line;
-}
-
-/**
- * 从提交行中提取提交类型
- */
-function getCommitType(line: string): string {
-  const match = line.match(
-    /^(?:[✨🐛📝💄♻️⚡✅📦👷🔧🌐]\s+)?(\w+)(?:\([^)]*\))?:/,
-  );
-  return match ? match[1] : "";
 }
 
 /**
