@@ -142,8 +142,12 @@ async function handleGenerateZendaoCommitMessage() {
       prompt: "输入编号后按回车生成提交信息",
       ignoreFocusOut: true,
     });
+    // cancel input 什么也不做
+    if (idString === undefined) {
+      return;
+    }
 
-    if (idString && isPositiveInteger(idString)) {
+    if (isPositiveInteger(idString)) {
       const zendaoService = new ZentaoService();
       await zendaoService.login();
       const zendaoInfo = await zendaoService.buildZendaoInfo(
