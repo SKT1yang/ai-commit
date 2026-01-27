@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.65",
+  "version": "0.0.66",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -43,7 +43,6 @@
     "multi-model"
   ],
   "extensionDependencies": [],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -76,6 +75,12 @@
           "dark": "./images/zendao.svg",
           "light": "./images/zendao.svg"
         }
+      },
+      {
+        "command": "ai-message.openSampleWebview",
+        "title": "打开示例 Webview",
+        "category": "AI Message",
+        "icon": "$(window)"
       }
     ],
     "menus": {
@@ -393,16 +398,17 @@
     "publish:pre": "vsce publish --pre-release"
   },
   "devDependencies": {
-    "@types/vscode": "1.104.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.0.10",
+    "@types/vscode": "1.104.0",
     "@typescript-eslint/eslint-plugin": "8.42.0",
     "@typescript-eslint/parser": "8.42.0",
-    "eslint": "9.34.0",
-    "esbuild": "0.25.9",
-    "npm-run-all": "4.1.5",
-    "typescript": "5.9.2",
     "@vscode/test-cli": "0.0.11",
-    "@vscode/test-electron": "2.5.2"
+    "@vscode/test-electron": "2.5.2",
+    "chokidar": "^5.0.0",
+    "esbuild": "0.25.9",
+    "eslint": "9.34.0",
+    "npm-run-all": "4.1.5",
+    "typescript": "5.9.2"
   }
 }

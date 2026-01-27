@@ -19,7 +19,11 @@ export const buildBasePrompt: BuildPromptFunction = (
   changedFiles,
   options,
 ) => {
-  return buildPromptByChinese(diff, changedFiles, options);
+  const result = buildPromptByChinese(diff, changedFiles, options);
+  if (options && options.zendaoInfo) {
+    options.zendaoInfo.prompt = result;
+  }
+  return result;
 };
 
 const buildPromptByChinese: BuildPromptFunction = (
@@ -35,9 +39,7 @@ const buildPromptByChinese: BuildPromptFunction = (
   const filesDescription = buildFileDescriptionPrompt(changedFiles);
 
   const diffPropmt = buildDiffPropmt(diff, changedFiles);
-  const zendaoPrompt = zendaoInfo?.shouldProcessZendao
-    ? buildZendaoPropmt(zendaoInfo)
-    : "";
+  const zendaoPrompt = zendaoInfo ? buildZendaoPropmt(zendaoInfo) : "";
 
   return `# AI Message Generator
 
@@ -314,9 +316,7 @@ function buildFileDescriptionPrompt(changedFiles: SvnFile[]) {
       ? changedFiles.slice(0, MAX_DIFF_FILES)
       : changedFiles;
   let description = files
-    .map(
-      (file) => `${file.path} (${getStatusDescription(file.status)})`,
-    )
+    .map((file) => `${file.path} (${getStatusDescription(file.status)})`)
     .join("\n");
   description =
     files.length > MAX_DIFF_FILES

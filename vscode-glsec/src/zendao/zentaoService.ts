@@ -96,7 +96,6 @@ export class ZentaoService {
     }
 
     let zendaoInfo: ZendaoInfo = {
-      shouldProcessZendao: false,
       prompt: "",
 
       id: bug.id,

@@ -134,7 +134,6 @@ export class ZendaoConfig {
 }
 
 export interface ZendaoInfo {
-  shouldProcessZendao: boolean; // 是否执行禅道逻辑
   prompt?: string; // 提示词
 
   id?: string; // Bug ID 或任务 ID

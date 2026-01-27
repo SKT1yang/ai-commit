@@ -9,6 +9,7 @@ import { ZentaoService } from "./zendao/zentaoService";
 import type { ZendaoInfo } from "./zendao/zendaoInterface";
 import { outputChannel } from "./utils/outputChannel";
 import { isPositiveInteger } from "./utils";
+import { WebviewPanel } from "./webviews/WebviewPanel";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -45,11 +46,25 @@ function registerCommands(context: vscode.ExtensionContext) {
     handleConfigureAI,
   );
 
+  // 注册新命令以打开Webview
+  const openSampleWebviewCmd = vscode.commands.registerCommand(
+    "ai-message.openSampleWebview",
+    async () => {
+      try {
+        const webviewPanel = WebviewPanel.getInstance(context);
+        await webviewPanel.show();
+      } catch (error) {
+        vscode.window.showErrorMessage(`Failed to open webview: ${error}`);
+      }
+    },
+  );
+
   context.subscriptions.push(
     generateCommand,
     zendaoCommand,
     quickCommand,
     configureCommand,
+    openSampleWebviewCmd, // 添加到订阅列表
   );
 }
 
@@ -113,6 +128,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
         outputChannel.appendLine(
           `[AI-Message] formatted value: ${formatted} / ${typeof formatted}`,
         );
+
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
@@ -153,10 +169,11 @@ async function handleGenerateZendaoCommitMessage() {
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
-      zendaoInfo.shouldProcessZendao = true;
-      handleGenerateCommitMessage(zendaoInfo);
+      await handleGenerateCommitMessage(zendaoInfo);
     } else {
-      outputChannel.appendLine(`[Zendao] 获取禅道信息失败,执行基础提交信息生成`);
+      outputChannel.appendLine(
+        `[Zendao] 获取禅道信息失败,执行基础提交信息生成`,
+      );
       handleGenerateCommitMessage();
     }
   } catch (error) {
