@@ -90,7 +90,7 @@ export class AIService {
         options,
       );
     } catch (error) {
-      outputChannel.appendLine(`[AI Service] AI提供商 ${this.provider!.name} 错误: ${error instanceof Error ? error.message : "未知错误"}`); 
+      outputChannel.appendLine(`[AI Service] AI提供商 ${this.provider!.name} 错误`); 
       console.error(`AI提供商 ${this.provider!.name} 生成失败:`, error);
       return await this.handleGenerationError(diff, changedFiles, options);
     }

@@ -37,9 +37,9 @@ export class ZentaoService {
         },
         body,
       });
-      outputChannel.appendLine(
-        `[Zendao] 登录后: ${response.status} ${response.statusText}`,
-      );
+        outputChannel.appendLine(
+          `[Zendao] 登录后: ${response.status} ${response.statusText}`,
+        );
 
       // 从响应中提取Cookie
       const setCookieHeader = response.headers.get("set-cookie");
@@ -60,9 +60,7 @@ export class ZentaoService {
   async buildZendaoInfo(id: number): Promise<ZendaoInfo> {
     const response = await this.getBugById(id);
     const bug = response?.bug ?? {};
-    outputChannel.appendLine(
-      `[Zendao]: 构建ZendaoInfo：${JSON.stringify(bug, null, 2)}`,
-    );
+    outputChannel.appendLine(`[Zendao]: 构建ZendaoInfo：${JSON.stringify(bug, null, 2)}`);
 
     let productName = "";
     if (response.products) {
@@ -98,7 +96,6 @@ export class ZentaoService {
     }
 
     let zendaoInfo: ZendaoInfo = {
-      shouldProcessZendao: false,
       prompt: "",
 
       id: bug.id,
@@ -118,9 +115,7 @@ export class ZentaoService {
 
       description: response.title,
     };
-    outputChannel.appendLine(
-      `[Zendao] 禅道信息: ${JSON.stringify(zendaoInfo)}`,
-    );
+    outputChannel.appendLine(`[Zendao] 禅道信息: ${JSON.stringify(zendaoInfo)}`);
     return zendaoInfo;
   }
 
@@ -139,12 +134,10 @@ export class ZentaoService {
 
     try {
       const url = `http://${this.config.host}/bug-view-${bugId}.json`;
-
-      outputChannel.appendLine(
-        `[ZendaoService]: fetchBugInfo config: ${JSON.stringify(this.config)}`,
-      );
+      outputChannel.appendLine(`[ZendaoService]: fetchBugInfo config: ${JSON.stringify(this.config)}`);
       outputChannel.appendLine(`Fetching bug info from url: ${url}`);
       outputChannel.appendLine(`Cookie: ${this.cookie}`);
+
 
       const response: Response = await fetch(url, {
         method: "GET",

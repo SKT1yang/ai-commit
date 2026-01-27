@@ -10,48 +10,14 @@ export function enforceConventionalCommit(
   zendaoInfo?: ZendaoInfo,
 ): string {
   const config = vscode.workspace.getConfiguration("aiMessage");
-  const enableEmoji = config.get(
-    "commit.enableEmoji",
-    config.get("commitFormat.enableEmoji", true),
-  );
-  const enableBody = config.get(
-    "commit.enableBody",
-    config.get("commitFormat.enableBody", true),
-  );
+  const enableEmoji = config.get("commit.enableEmoji", true);
+  const enableBody = config.get("commit.enableBody", true);
   const enableIntelligentBody = config.get("commit.intelligentBody", true);
   const enableBodyQualityCheck = config.get("commit.bodyQualityCheck", true);
-  const language = config.get(
-    "commit.language",
-    config.get("commitFormat.language", "zh-CN"),
-  );
 
   // 从配置中获取模板
   let template = config.get<string>("commitTemplate", "");
   let zenndaoTemplate = config.get<string>("zendao.commitTemplate", "");
-
-  // 语言归一化
-  function normalizeLanguage(lang: string | undefined): string {
-    if (!lang) {
-      return "en";
-    }
-    const l = lang.toLowerCase();
-    if (
-      [
-        "zh",
-        "zh-cn",
-        "zh_cn",
-        "zh-hans",
-        "简体中文",
-        "chinese",
-        "中文",
-        "cn",
-      ].includes(l)
-    ) {
-      return "zh-cn";
-    }
-    return "en";
-  }
-  const isZh = normalizeLanguage(language as string) === "zh-cn";
 
   const typeMap: Record<string, string> = {
     feat: "feat",
@@ -144,10 +110,10 @@ export function enforceConventionalCommit(
     if (!body || body.trim().length === 0) {
       // 使用智能body生成（如果启用）
       if (enableIntelligentBody && diff && changedFiles) {
-        body = generateIntelligentBody(diff, changedFiles, isZh);
+        body = generateIntelligentBody(diff, changedFiles);
       } else if (changedFiles && changedFiles.length > 0) {
         // 回退到基础body生成
-        body = generateBasicBody(changedFiles, isZh);
+        body = generateBasicBody(changedFiles);
       }
     } else {
       // 对现有body进行格式标准化
@@ -159,7 +125,7 @@ export function enforceConventionalCommit(
 
     // 对生成的body进行质量检查和优化（如果启用）
     if (body && enableBodyQualityCheck) {
-      const validation = validateAndOptimizeBody(body, isZh);
+      const validation = validateAndOptimizeBody(body);
       body = validation.body;
 
       // 如果有警告且开启调试模式，输出到控制台
@@ -177,22 +143,17 @@ export function enforceConventionalCommit(
 
   const message = finalHeader + (enableBody && body ? `\n\n${body}` : "");
 
-  let finalTemplate = zendaoInfo?.shouldProcessZendao
-    ? zenndaoTemplate
-    : template;
+  let finalTemplate = zendaoInfo ? zenndaoTemplate : template;
 
   if (!finalTemplate) {
     return message;
   }
 
   // 禅道数据异常，模版直接实效，则使用message作为模版
-  if (
-    zendaoInfo?.shouldProcessZendao &&
-    zenndaoTemplate &&
-    !zendaoInfo.description
-  ) {
+  if (zendaoInfo && zenndaoTemplate && !zendaoInfo.description) {
     return message;
   }
+
   const finalLines = message.split(/\r?\n/).filter((l) => l.trim().length > 0);
   outputChannel.appendLine(`Final template: ${finalTemplate}`);
   if (finalLines.length > 0) {
@@ -224,11 +185,7 @@ export function enforceConventionalCommit(
 /**
  * 智能分析diff内容生成详细的body描述
  */
-function generateIntelligentBody(
-  diff: string,
-  changedFiles: any[],
-  isZh: boolean = true,
-): string {
+function generateIntelligentBody(diff: string, changedFiles: any[]): string {
   const bodyLines: string[] = [];
 
   // 分析diff内容
@@ -238,61 +195,41 @@ function generateIntelligentBody(
   // 根据分析结果生成不同类型的body内容
   if (diffAnalysis.newFunctions.length > 0) {
     const funcs = diffAnalysis.newFunctions.slice(0, 3);
-    bodyLines.push(
-      isZh
-        ? `- 新增函数: ${funcs.join(", ")}`
-        : `- Add functions: ${funcs.join(", ")}`,
-    );
+    bodyLines.push(`- 新增函数: ${funcs.join(", ")}`);
   }
 
   if (diffAnalysis.modifiedFunctions.length > 0) {
     const funcs = diffAnalysis.modifiedFunctions.slice(0, 3);
-    bodyLines.push(
-      isZh
-        ? `- 修改函数: ${funcs.join(", ")}`
-        : `- Modify functions: ${funcs.join(", ")}`,
-    );
+    bodyLines.push(`- 修改函数: ${funcs.join(", ")}`);
   }
 
   if (diffAnalysis.hasImportChanges) {
-    bodyLines.push(
-      isZh ? "- 更新依赖导入关系" : "- Update import dependencies",
-    );
+    bodyLines.push("- 更新依赖导入关系");
   }
 
   if (diffAnalysis.hasConfigChanges) {
-    bodyLines.push(
-      isZh ? "- 调整配置参数" : "- Adjust configuration parameters",
-    );
+    bodyLines.push("- 调整配置参数");
   }
 
   if (diffAnalysis.hasDocChanges) {
-    bodyLines.push(
-      isZh ? "- 更新文档和注释" : "- Update documentation and comments",
-    );
+    bodyLines.push("- 更新文档和注释");
   }
 
   // 添加代码量统计
   if (diffAnalysis.linesAdded > 0 || diffAnalysis.linesDeleted > 0) {
-    const statsText = isZh
-      ? `- 代码变更: +${diffAnalysis.linesAdded} -${diffAnalysis.linesDeleted} 行`
-      : `- Code changes: +${diffAnalysis.linesAdded} -${diffAnalysis.linesDeleted} lines`;
+    const statsText = `- 代码变更: +${diffAnalysis.linesAdded} -${diffAnalysis.linesDeleted} 行`;
     bodyLines.push(statsText);
   }
 
   // 添加影响范围分析
   if (fileAnalysis.affectedModules.length > 0) {
     const modules = fileAnalysis.affectedModules.slice(0, 3);
-    bodyLines.push(
-      isZh
-        ? `- 影响模块: ${modules.join(", ")}`
-        : `- Affected modules: ${modules.join(", ")}`,
-    );
+    bodyLines.push(`- 影响模块: ${modules.join(", ")}`);
   }
 
   // 如果没有生成任何内容，使用基础文件变更信息
   if (bodyLines.length === 0) {
-    return generateBasicBody(changedFiles, isZh);
+    return generateBasicBody(changedFiles);
   }
 
   return bodyLines.join("\n");
@@ -301,7 +238,7 @@ function generateIntelligentBody(
 /**
  * 生成基础body内容（回退方案）
  */
-function generateBasicBody(changedFiles: any[], isZh: boolean = true): string {
+function generateBasicBody(changedFiles: any[]): string {
   const filesByType = changedFiles.reduce((acc: any, file: any) => {
     const status = file.status || "M";
     if (!acc[status]) {
@@ -313,25 +250,13 @@ function generateBasicBody(changedFiles: any[], isZh: boolean = true): string {
 
   const bodyLines: string[] = [];
   if (filesByType["A"]) {
-    bodyLines.push(
-      isZh
-        ? `- 新增文件: ${filesByType["A"].slice(0, 3).join(", ")}`
-        : `- Add files: ${filesByType["A"].slice(0, 3).join(", ")}`,
-    );
+    bodyLines.push(`- 新增文件: ${filesByType["A"].slice(0, 3).join(", ")}`);
   }
   if (filesByType["M"]) {
-    bodyLines.push(
-      isZh
-        ? `- 修改文件: ${filesByType["M"].slice(0, 3).join(", ")}`
-        : `- Modify files: ${filesByType["M"].slice(0, 3).join(", ")}`,
-    );
+    bodyLines.push(`- 修改文件: ${filesByType["M"].slice(0, 3).join(", ")}`);
   }
   if (filesByType["D"]) {
-    bodyLines.push(
-      isZh
-        ? `- 删除文件: ${filesByType["D"].slice(0, 3).join(", ")}`
-        : `- Delete files: ${filesByType["D"].slice(0, 3).join(", ")}`,
-    );
+    bodyLines.push(`- 删除文件: ${filesByType["D"].slice(0, 3).join(", ")}`);
   }
 
   return bodyLines.join("\n");
@@ -440,43 +365,35 @@ function analyzeFileChanges(changedFiles: any[]) {
 /**
  * Body质量检查和优化
  */
-function validateAndOptimizeBody(
-  body: string,
-  isZh: boolean = true,
-): { body: string; warnings: string[] } {
+function validateAndOptimizeBody(body: string): {
+  body: string;
+  warnings: string[];
+} {
   const warnings: string[] = [];
   let optimizedBody = body;
 
   // 长度检查
   const lines = body.split("\n").filter((line) => line.trim());
   if (lines.length === 0) {
-    warnings.push(isZh ? "Body内容为空" : "Body content is empty");
+    warnings.push("Body内容为空");
     return { body: optimizedBody, warnings };
   }
 
   if (lines.length > 10) {
-    warnings.push(
-      isZh
-        ? "Body内容过长，建议简化"
-        : "Body content too long, consider simplifying",
-    );
+    warnings.push("Body内容过长，建议简化");
     optimizedBody = lines.slice(0, 10).join("\n");
   }
 
   // 每行长度检查（Conventional Commits建议每行不超过72字符）
   const longLines = lines.filter((line) => line.length > 72);
   if (longLines.length > 0) {
-    warnings.push(
-      isZh
-        ? `${longLines.length}行超过72字符`
-        : `${longLines.length} lines exceed 72 characters`,
-    );
+    warnings.push(`${longLines.length}行超过72字符`);
   }
 
   // 重复内容检查
   const uniqueLines = [...new Set(lines)];
   if (uniqueLines.length !== lines.length) {
-    warnings.push(isZh ? "检测到重复内容" : "Duplicate content detected");
+    warnings.push("检测到重复内容");
     optimizedBody = uniqueLines.join("\n");
   }
 
@@ -513,11 +430,7 @@ function validateAndOptimizeBody(
   );
 
   if (hasOnlyFileList && lines.length === 1) {
-    warnings.push(
-      isZh
-        ? "建议添加更详细的变更说明"
-        : "Consider adding more detailed change descriptions",
-    );
+    warnings.push("建议添加更详细的变更说明");
   }
 
   return { body: optimizedBody, warnings };
