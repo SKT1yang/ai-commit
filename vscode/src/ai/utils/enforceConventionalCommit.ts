@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
 import { outputChannel } from "../../utils/outputChannel";
+import { getEmojiByText } from "../../utils/emoji";
 
 // 规范化提交信息，强制符合 Conventional Commits 基础格式
 export function enforceConventionalCommit(
@@ -46,19 +47,6 @@ export function enforceConventionalCommit(
     perf: "perf",
   };
 
-  const emojiMap: Record<string, string> = {
-    feat: "✨",
-    fix: "🐛",
-    docs: "📝",
-    style: "🎨",
-    refactor: "♻️",
-    test: "✅",
-    chore: "🔧",
-    build: "🏗️",
-    ci: "⚙️",
-    perf: "⚡",
-  };
-
   const lines = raw.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) {
     return raw;
@@ -100,7 +88,7 @@ export function enforceConventionalCommit(
     subject = subject.slice(0, 47).trim() + "...";
   }
 
-  const emoji = enableEmoji ? emojiMap[type] || "" : "";
+  const emoji = enableEmoji ? getEmojiByText(type) || "" : "";
   const finalHeader = `${emoji ? emoji + " " : ""}${type}${
     scope ? "(" + scope + ")" : ""
   }: ${subject}`.trim();

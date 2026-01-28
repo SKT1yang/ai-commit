@@ -4,6 +4,7 @@ import { SvnFile } from "../vcs/svnService";
 import { AIProviderFactory } from "./aiProviderFactory";
 import { FALLBACK_PRIORITIES, CONFIG_KEYS } from "./utils/constants";
 import { outputChannel } from "../utils/outputChannel";
+import { getEmojiByText } from "../utils/emoji";
 
 export class AIService {
   private provider: AIProvider | null = null;
@@ -270,29 +271,29 @@ export class AIService {
     const operations = new Set(changedFiles.map((f) => f.status));
 
     if (fileTypes.has("md") || fileTypes.has("txt")) {
-      return { type: "docs", emoji: "📝", subject: "更新文档" };
+      return { type: "docs", emoji: getEmojiByText('docs'), subject: "更新文档" };
     }
 
     if (
       fileTypes.has("json") &&
       changedFiles.some((f) => f.path.includes("package.json"))
     ) {
-      return { type: "build", emoji: "📦", subject: "更新依赖配置" };
+      return { type: "build", emoji: getEmojiByText('build'), subject: "更新依赖配置" };
     }
 
     if (operations.has("A")) {
-      return { type: "feat", emoji: "✨", subject: "添加新功能" };
+      return { type: "feat", emoji: getEmojiByText('feat'), subject: "添加新功能" };
     }
 
     if (operations.has("D")) {
-      return { type: "chore", emoji: "🔧", subject: "删除文件" };
+      return { type: "chore", emoji: getEmojiByText('chore'), subject: "删除文件" };
     }
 
     if (operations.has("M")) {
-      return { type: "fix", emoji: "🐛", subject: "修复问题" };
+      return { type: "fix", emoji: getEmojiByText('fix'), subject: "修复问题" };
     }
 
-    return { type: "chore", emoji: "🔧", subject: "更新代码" };
+    return { type: "chore", emoji: getEmojiByText('chore'), subject: "更新代码" };
   }
 
   /**

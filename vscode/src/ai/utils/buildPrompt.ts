@@ -2,6 +2,7 @@ import type { SvnFile } from "../../vcs/svnService";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
 import { outputChannel } from "../../utils/outputChannel";
 import { MAX_DIFF_CHARS, MAX_DIFF_FILES } from "../utils/constants";
+import { getEmojiByText } from "../../utils/emoji";
 
 type BuildPromptFunction = (
   diff: string,
@@ -119,17 +120,17 @@ const buildPromptByChinese: BuildPromptFunction = (
 
 | Type     | Emoji | Description          | Example Scopes      |
 | -------- | ----- | -------------------- | ------------------- |
-| feat     | ✨    | New feature          | user, payment       |
-| fix      | 🐛    | Bug fix              | auth, data          |
-| docs     | 📝    | Documentation        | README, API         |
-| style    | 💄    | Code style           | formatting          |
-| refactor | ♻️    | Code refactoring     | utils, helpers      |
-| perf     | ⚡    | Performance          | query, cache        |
-| test     | ✅    | Testing              | unit, e2e           |
-| build    | 📦    | Build system         | webpack, npm        |
-| ci       | 👷    | CI config            | Travis, Jenkins     |
-| chore    | 🔧    | Other changes        | scripts, config     |
-| i18n     | 🌐    | Internationalization | locale, translation |
+| feat     | ${getEmojiByText("feat")}    | New feature          | user, payment       |
+| fix      | ${getEmojiByText("fix")}    | Bug fix              | auth, data          |
+| docs     | ${getEmojiByText("docs")}    | Documentation        | README, API         |
+| style    | ${getEmojiByText("style")}    | Code style           | formatting          |
+| refactor | ${getEmojiByText("refactor")}   | Code refactoring     | utils, helpers      |
+| perf     | ${getEmojiByText("perf")}    | Performance          | query, cache        |
+| test     | ${getEmojiByText("test")}   | Testing              | unit, e2e           |
+| build    | ${getEmojiByText("build")}    | Build system         | webpack, npm        |
+| ci       | ${getEmojiByText("ci")}    | CI config            | Travis, Jenkins     |
+| chore    | ${getEmojiByText("chore")}    | Other changes        | scripts, config     |
+| i18n     | ${getEmojiByText("i18n")}    | Internationalization | locale, translation |
 
 ### 类型检测指南
 
@@ -156,7 +157,7 @@ ${zendaoPrompt}
 
 ### 示例：包含body的功能实现 
 \`\`\`
-✨ feat(auth): 实现JWT用户认证系统
+${getEmojiByText("feat")} feat(auth): 实现JWT用户认证系统
 
 - 替换传统token认证为JWT认证
 -【Breaking Change】旧token格式不再支持
@@ -166,7 +167,7 @@ ${zendaoPrompt}
 
 ### 示例：包含详细说明的错误修复
 \`\`\`
-� fix(billing): 修复折扣计算逻辑错误
+${getEmojiByText("fix")} fix(billing): 修复折扣计算逻辑错误
 
 - 修正了百分比折扣计算中的舍入错误
 - 确保折扣金额不超过订单总额
@@ -175,7 +176,7 @@ ${zendaoPrompt}
 
 ### 示例：代码重构
 \`\`\`
-♻️ refactor(user): 重构用户配置模块提高可读性
+${getEmojiByText("test")} refactor(user): 重构用户配置模块提高可读性
 
 - 重构了用户配置模块代码以提高可读性和可维护性
 - 将通用逻辑提取为辅助函数

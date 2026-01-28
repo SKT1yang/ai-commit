@@ -3,6 +3,7 @@ import { getCssStyle } from "./css";
 import { getjsScript } from "./javascript";
 import { ZendaoInfo } from "../zendao/zendaoInterface";
 import { ZendaoService } from "../zendao/zentaoService";
+import { getCommentHtmlString } from "./html";
 
 export class WebviewPanel {
   private static instance: WebviewPanel | null = null;
@@ -67,7 +68,7 @@ export class WebviewPanel {
             }
             const { reason, solution, modules, commitPath } = message.data;
             // 禅道评论不支持] \n 转换，直接使用富文本html
-            const comment = `问题原因: <br>${reason}<br>解决方案: <br>${solution}<br>影响模块: <br>${modules}<br>提交记录: <br>${commitPath}`;
+            const comment = getCommentHtmlString(reason, solution, modules, commitPath);
             await this.zendaoService.commentBug(this.zendaoInfo.id, comment);
             this.dispose();
             return;
@@ -97,6 +98,9 @@ export class WebviewPanel {
             <div class="title" 
               title="${this.zendaoInfo.title}">
               ${this.zendaoInfo.title}
+            </div>
+            <div class="help">
+              禅道富文本支持特定emoji，因此不要填写自定义emoji
             </div>
           </div>
           <div class="comment">

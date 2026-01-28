@@ -1,3 +1,5 @@
+import { getEmojiMap, getEmojiByText } from "../../utils/emoji";
+
 /**
  * 提取和清理AI响应的提交信息，
  * 目标是从响应中提取出符合Conventional Commits格式的提交信息。
@@ -26,10 +28,18 @@ export function extractCommitMessage(response: string): string {
   cleaned = cleaned.replace(/^`/, "").replace(/`$/, "");
 
   // 移除解释性前缀文本，保留实际的提交信息
-  cleaned = cleaned.replace(
-    /^.*?(?=✨|🐛|📝|💄|♻️|⚡|✅|📦|👷|🔧|🌐|feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)/s,
-    "",
+  const emojiMap = getEmojiMap();
+  const patterns = [
+    ...Array.from(emojiMap.keys()),
+    ...Array.from(emojiMap.values()).flat(),
+  ];
+
+  const escapedPatterns = patterns.map((p) =>
+    p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
   );
+  const regex = new RegExp(`^.*?(?=${escapedPatterns.join("|")})`, "s");
+
+  cleaned.replace(regex, "");
 
   // 按行分割并过滤空行
   const lines = cleaned
@@ -38,7 +48,7 @@ export function extractCommitMessage(response: string): string {
     .filter((line) => line);
 
   if (lines.length === 0) {
-    return "✨ feat(misc): 更新代码";
+    return `${getEmojiByText("feat")} feat(misc): 更新代码`;
   }
 
   // 移除解释性文本和标题，但保留提交信息和body内容
@@ -65,7 +75,7 @@ export function extractCommitMessage(response: string): string {
   });
 
   if (filteredLines.length === 0) {
-    return "✨ feat(misc): 更新代码";
+    return `${getEmojiByText("feat")} feat(misc): 更新代码`;
   }
 
   const processedLines: string[] = [];
@@ -87,19 +97,19 @@ export function extractCommitMessage(response: string): string {
     processedLines.length === 0 ||
     !processedLines.some((line) => isValidCommitLine(line))
   ) {
-    return "✨ feat(misc): 更新代码";
+    return `${getEmojiByText("feat")} feat(misc): 更新代码`;
   }
 
   return processedLines.join("\n").trim();
 }
-
 
 /**
  * 检查是否为有效的提交信息行
  */
 export function isValidCommitLine(line: string): boolean {
   // 检查是否包含emoji开头或者直接以type开头
-  const emojiPattern = /^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/;
+  const emojiMap = getEmojiMap();
+  const emojiPattern = new RegExp(`^[${Array.from(emojiMap.keys()).join("")}]`);
   const typePattern =
     /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|i18n)(\([^)]*\))?:/;
 
@@ -154,7 +164,9 @@ function formatBodyLine(line: string): string {
  */
 function ensureCorrectEmoji(line: string): string {
   // 如果已经有emoji，直接返回
-  if (line.match(/^[✨🐛📝💄♻️⚡✅📦👷🔧🌐]/)) {
+  const emojiMap = getEmojiMap();
+  const emojiPattern = new RegExp(`^[${Array.from(emojiMap.keys()).join("")}]`);
+  if (line.match(emojiPattern)) {
     return line;
   }
 
@@ -162,29 +174,9 @@ function ensureCorrectEmoji(line: string): string {
   const typeMatch = line.match(/^(\w+)(?:\([^)]*\))?:/);
   if (typeMatch) {
     const type = typeMatch[1];
-    const emoji = getEmojiForType(type);
+    const emoji = getEmojiByText(type) || getEmojiByText("feat");
     return `${emoji} ${line}`;
   }
 
   return line;
-}
-
-/**
- * 根据提交类型获取对应的emoji
- */
-function getEmojiForType(type: string): string {
-  const emojiMap: { [key: string]: string } = {
-    feat: "✨",
-    fix: "🐛",
-    docs: "📝",
-    style: "💄",
-    refactor: "♻️",
-    perf: "⚡",
-    test: "✅",
-    build: "📦",
-    ci: "👷",
-    chore: "🔧",
-    i18n: "🌐",
-  };
-  return emojiMap[type] || "✨";
 }

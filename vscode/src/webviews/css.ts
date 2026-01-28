@@ -73,6 +73,11 @@ export function getCssStyle() {
       .comment .required {
         color: red;
       }
+
+      .help {
+        font-size: 12px;
+        color: var(--vscode-foreground);
+      }
     `;
 
   return cssStyle;
