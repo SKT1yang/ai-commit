@@ -58,19 +58,35 @@ export class WebviewPanel {
       async (message) => {
         switch (message.command) {
           case "submit":
-            if (!this.zendaoInfo.id) {
-              vscode.window.showErrorMessage("请选择禅道Bug");
-              return;
+            try {
+              if (!this.zendaoInfo.id) {
+                vscode.window.showErrorMessage("请选择禅道Bug");
+                return;
+              }
+              if (!message.data) {
+                vscode.window.showErrorMessage("请填写数据异常");
+                return;
+              }
+              const { reason, solution, modules, commitPath } = message.data;
+              const comment = getCommentHtmlString(
+                reason,
+                solution,
+                modules,
+                commitPath,
+              );
+              await this.zendaoService.commentBug(this.zendaoInfo.id, comment);
+            } catch (error) {
+              vscode.window.showErrorMessage(
+                `提交失败: ${(error as Error).message}`,
+              );
+            } finally {
+              this.sendMessage({
+                command: "resetSubmitButton",
+              });
+
+              this.dispose();
             }
-            if (!message.data) {
-              vscode.window.showErrorMessage("请填写数据异常");
-              return;
-            }
-            const { reason, solution, modules, commitPath } = message.data;
-            // 禅道评论不支持] \n 转换，直接使用富文本html
-            const comment = getCommentHtmlString(reason, solution, modules, commitPath);
-            await this.zendaoService.commentBug(this.zendaoInfo.id, comment);
-            this.dispose();
+
             return;
           case "cancel":
             this.dispose();
@@ -164,7 +180,6 @@ export class WebviewPanel {
   }
 
   private getDefaultComment(): string {
-    
     return "";
   }
 
