@@ -6,6 +6,11 @@ export function getCommentHtmlString(
   modules: string,
   commitPath: string,
 ) {
+  // 保持换行
+  reason = reason.replace(/\n/g, "<br>");
+  solution = solution.replace(/\n/g, "<br>");
+  modules = modules.replace(/\n/g, "<br>");
+  commitPath = commitPath.replace(/\n/g, "<br>");
   const result = `<div class="issue-report">
       <div class="report-section">
         <div class="section-header">

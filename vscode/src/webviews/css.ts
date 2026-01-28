@@ -76,6 +76,8 @@ export function getCssStyle() {
 
       .help {
         font-size: 12px;
+        margin-top: 16px;
+        margin-bottom: 16px;
         color: var(--vscode-foreground);
       }
     `;

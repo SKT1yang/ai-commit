@@ -45,29 +45,29 @@ export function getTextByEmoji(emoji: string) {
 export function convertEmojiToImg(emoji: string) {
   switch (emoji) {
     case "✨":
-      return '<img src="/file-read-25650.png" alt="feat" />';
+      return '<img src="/file-read-25650.png" style="margin: 0px;" alt="feat" />';
     case "🐛":
-      return '<img src="/file-read-25651.png" alt="fix" />';
+      return '<img src="/file-read-25651.png" style="margin: 0px;" alt="fix" />';
     case "📝":
-      return '<img src="/file-read-25649.png" alt="docs" />';
+      return '<img src="/file-read-25649.png" style="margin: 0px;" alt="docs" />';
     case "🎨":
-      return '<img src="/file-read-25655.png" alt="style" />';
+      return '<img src="/file-read-25655.png" style="margin: 0px;" alt="style" />';
     case "♻️":
-      return '<img src="/file-read-25654.png" alt="refactor" />';
+      return '<img src="/file-read-25654.png" style="margin: 0px;" alt="refactor" />';
     case "⚡":
-      return '<img src="/file-read-25653.png" alt="perf" />';
+      return '<img src="/file-read-25653.png" style="margin: 0px;" alt="perf" />';
     case "✅":
-      return '<img src="/file-read-25656.png" alt="test" />';
+      return '<img src="/file-read-25656.png" style="margin: 0px;" alt="test" />';
     case "📦":
-      return '<img src="/file-read-25648.png" alt="build" />';
+      return '<img src="/file-read-25648.png" style="margin: 0px;" alt="build" />';
     case "🌐":
-      return '<img src="/file-read-25652.png" alt="i18n" />';
+      return '<img src="/file-read-25652.png" style="margin: 0px;" alt="i18n" />';
     case "🔧":
-      return '<img src="/file-read-25647.png" alt="chore" />';
+      return '<img src="/file-read-25647.png" style="margin: 0px;" alt="chore" />';
     case "👷":
-      return '<img src="/file-read-25647.png" alt="chore" />';
+      return '<img src="/file-read-25647.png" style="margin: 0px;" alt="chore" />';
     default:
-      return '<img src="/file-read-25650.png" alt="feat" />';
+      return '<img src="/file-read-25650.png" style="margin: 0px;" alt="feat" />';
   }
 }
 

@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -370,6 +370,12 @@
           "default": "[{zendaoType}: {zendaoId}][MSG: {zendaoDescription}]\n{message}",
           "description": "配置禅道提交信息模板 (可选，用 {message} 占位符代表AI生成的信息，{zendaoType}表示任务类型， {zendaoId}表示禅道编号， {zendaoDescription}表示禅道任务描述)",
           "order": 17
+        },
+        "aiMessage.zendao.autoComment": {
+          "type": "boolean",
+          "default": false,
+          "description": "启用ziandao自动评论（自动提交到禅道）, 自动完成 1. 生成提交信息 -> 2. commit代码到暂存区 -> 3. 生成comment -> 4. 提交评论道禅道",
+          "order": 26
         }
       }
     }

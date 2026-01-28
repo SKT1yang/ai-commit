@@ -149,7 +149,9 @@ export class WebviewPanel {
                 placeholder="请填写版本控制提交记录url"
                 required
               >${this.zendaoInfo?.comment?.commitUrl}</textarea>
-              <button class="primary" type="submit" id="submit-btn">提交评论</button>
+              <button class="primary" type="submit" id="submit-btn">
+                提交评论
+              </button>
               <button id="cancel-btn">取消</button>
             </div>
           </div>
@@ -162,6 +164,7 @@ export class WebviewPanel {
   }
 
   private getDefaultComment(): string {
+    
     return "";
   }
 
