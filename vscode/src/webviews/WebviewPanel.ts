@@ -66,14 +66,8 @@ export class WebviewPanel {
               return;
             }
             const { reason, solution, modules, commitPath } = message.data;
-            const comment = `问题原因: 
-            ${reason}
-            解决方案: 
-            ${solution}
-            影响模块: 
-            ${modules}
-            提交记录: 
-            ${commitPath}`;
+            // 禅道评论不支持] \n 转换，直接使用富文本html
+            const comment = `问题原因: <br>${reason}<br>解决方案: <br>${solution}<br>影响模块: <br>${modules}<br>提交记录: <br>${commitPath}`;
             await this.zendaoService.commentBug(this.zendaoInfo.id, comment);
             this.dispose();
             return;

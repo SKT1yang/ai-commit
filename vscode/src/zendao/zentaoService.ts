@@ -192,6 +192,9 @@ export class ZendaoService {
         uid,
       });
 
+      outputChannel.appendLine(
+        `[ZendaoService]: 提交给禅道的评论数据 ${JSON.stringify(comment)}`,
+      );
       const response: Response = await fetch(url, {
         method: "POST",
         headers: {
@@ -208,6 +211,7 @@ export class ZendaoService {
         throw new Error(`Server error: ${response.status}`);
       }
     } catch (error) {
+      outputChannel.appendLine(`[Zendao] 提交禅道评论失败，错误 ${JSON.stringify(error)}`);
       console.error("comment bug failed:", error);
       throw error;
     }
