@@ -5,7 +5,7 @@ import { AIService } from "./ai/aiService";
 import { setScmInputBoxValue } from "./utils/setScmInputBoxValue";
 import { showCommitMessagePreview } from "./utils/showCommitMessagePreview";
 import { handleError } from "./utils/handleError";
-import { ZentaoService } from "./zendao/zentaoService";
+import { ZendaoService } from "./zendao/zentaoService";
 import type { ZendaoInfo } from "./zendao/zendaoInterface";
 import { outputChannel } from "./utils/outputChannel";
 import { isPositiveInteger } from "./utils";
@@ -46,25 +46,11 @@ function registerCommands(context: vscode.ExtensionContext) {
     handleConfigureAI,
   );
 
-  // 注册新命令以打开Webview
-  const openSampleWebviewCmd = vscode.commands.registerCommand(
-    "ai-message.openSampleWebview",
-    async () => {
-      try {
-        const webviewPanel = WebviewPanel.getInstance(context);
-        await webviewPanel.show();
-      } catch (error) {
-        vscode.window.showErrorMessage(`Failed to open webview: ${error}`);
-      }
-    },
-  );
-
   context.subscriptions.push(
     generateCommand,
     zendaoCommand,
     quickCommand,
     configureCommand,
-    openSampleWebviewCmd, // 添加到订阅列表
   );
 }
 
@@ -129,6 +115,10 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
           `[AI-Message] formatted value: ${formatted} / ${typeof formatted}`,
         );
 
+        if (zendaoInfo) {
+          zendaoInfo.commitMessage = formatted;
+        }
+
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
@@ -164,12 +154,81 @@ async function handleGenerateZendaoCommitMessage() {
     }
 
     if (isPositiveInteger(idString)) {
-      const zendaoService = new ZentaoService();
+      const zendaoService = new ZendaoService();
       await zendaoService.login();
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
       await handleGenerateCommitMessage(zendaoInfo);
+
+      const selection = await vscode.window.showQuickPick([
+        {
+          label: "$(check)提交禅道评论",
+          description: "提交前自动执行commit",
+          action: "comment",
+        },
+        {
+          label: "$(close)取消",
+          description: "",
+          action: "cancel",
+        },
+      ]);
+
+      if (!selection) {
+        return;
+      }
+
+      switch (selection.action) {
+        case "comment":
+          if (!vcsService) {
+            throw new Error("版本控制服务未初始化");
+          }
+          if (!zendaoInfo.commitMessage) {
+            throw new Error("提交信息为空");
+          }
+          if (!zendaoInfo.comment) {
+            zendaoInfo.comment = {
+              reason: "",
+              solution: zendaoInfo?.commitMessageWithoutTemplate ?? "",
+              modules: zendaoInfo?.module ?? "",
+              commitUrl: "",
+            };
+          }
+
+          outputChannel.appendLine(
+            `[Zendao] 禅道评论信息 ${JSON.stringify(zendaoInfo.comment)}`,
+          );
+
+          // 执行提交
+          const hash = await vcsService?.commit(zendaoInfo.commitMessage);
+          const urlObj = await vcsService.getRemoteUrl();
+
+          outputChannel.appendLine(`[Zendao] 提交成功, hash: ${hash}`);
+          outputChannel.appendLine(`[Zendao] 提交地址 ${typeof urlObj === "object" ? JSON.stringify(urlObj) : ''}`);
+
+          if (
+            urlObj &&
+            typeof urlObj === "object" &&
+            Object.values(urlObj).length > 0 &&
+            hash
+          ) {
+            let url = Object.values(urlObj)[0];
+            // https://github.com/user/repo.git -> https://github.com/user/repo
+            url = url.replace(/\.git$/, "") + "/commit/" + hash;
+            zendaoInfo.comment.commitUrl = url;
+          }
+
+          try {
+            const webviewPanel = WebviewPanel.getInstance(
+              zendaoInfo,
+              zendaoService,
+            );
+            await webviewPanel.show();
+          } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open webview: ${error}`);
+          }
+          break;
+      }
     } else {
       outputChannel.appendLine(
         `[Zendao] 获取禅道信息失败,执行基础提交信息生成`,

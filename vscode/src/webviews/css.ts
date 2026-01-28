@@ -7,19 +7,12 @@ export function getCssStyle() {
         background-color: var(--vscode-editor-background);
       }
 
-      h1 {
-        color: var(--vscode-titleBar-activeForeground);
-        margin-bottom: 10px;
-      }
-
       p {
         margin-bottom: 20px;
         line-height: 1.5;
       }
 
       button {
-        background-color: var(--vscode-button-background);
-        color: var(--vscode-button-foreground);
         border: none;
         padding: 8px 15px;
         margin-right: 10px;
@@ -28,8 +21,13 @@ export function getCssStyle() {
         font-size: 13px;
       }
 
-      button:hover {
+      .primary:hover {
         background-color: var(--vscode-button-hoverBackground);
+      }
+
+      .primary {
+        background-color: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
       }
 
       input[type="text"] {
@@ -42,24 +40,38 @@ export function getCssStyle() {
         background-color: var(--vscode-input-background);
         color: var(--vscode-input-foreground);
         border-radius: 2px;
+        box-sizing: border-box;
       }
 
-      #status {
-        background-color: var(--vscode-badge-background);
-        color: var(--vscode-badge-foreground);
-        padding: 5px 10px;
-        border-radius: 4px;
-        display: inline-block;
+      textarea { 
+        display: block;
+        width: 100%;
+        padding: 8px;
         margin: 10px 0;
+        border: 1px solid var(--vscode-input-border);
+        background-color: var(--vscode-input-background);
+        color: var(--vscode-input-foreground);
+        border-radius: 2px;
+        resize: vertical;
       }
 
-      #result {
-        margin-top: 20px;
-        padding: 10px;
-        background-color: var(--vscode-textCodeBlock-background);
-        min-height: 20px;
-        border-radius: 4px;
-        margin: 10px 0;
+      .container {
+        width: 1200px;
+      }
+
+      .content {
+      }
+
+      .content .title {
+        font-size: 20px;
+        font-weight: bold;
+      }
+
+      .comment {
+      }
+
+      .comment .required {
+        color: red;
       }
     `;
 

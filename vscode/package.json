@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.66",
+  "version": "0.0.4",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -75,12 +75,6 @@
           "dark": "./images/zendao.svg",
           "light": "./images/zendao.svg"
         }
-      },
-      {
-        "command": "ai-message.openSampleWebview",
-        "title": "打开示例 Webview",
-        "category": "AI Message",
-        "icon": "$(window)"
       }
     ],
     "menus": {
@@ -136,6 +130,11 @@
         "command": "ai-message.generateCommitMessage",
         "key": "ctrl+alt+g",
         "mac": "cmd+alt+g"
+      },
+      {
+        "command": "ai-message.generateZendaoCommitMessage",
+        "key": "ctrl+alt+z",
+        "mac": "cmd+alt+z"
       },
       {
         "command": "ai-message.quickCommit",

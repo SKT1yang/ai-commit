@@ -143,6 +143,11 @@ export function enforceConventionalCommit(
 
   const message = finalHeader + (enableBody && body ? `\n\n${body}` : "");
 
+  if (zendaoInfo) {
+    zendaoInfo.commitMessage = message;
+    zendaoInfo.commitMessageWithoutTemplate = message;
+  }
+
   let finalTemplate = zendaoInfo ? zenndaoTemplate : template;
 
   if (!finalTemplate) {
@@ -179,6 +184,9 @@ export function enforceConventionalCommit(
   }
 
   outputChannel.appendLine(`[DEBUG] Final commit message result: ${result}`);
+  if (zendaoInfo) {
+    zendaoInfo.commitMessage = result;
+  }
   return result;
 }
 

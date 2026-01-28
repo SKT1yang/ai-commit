@@ -9,21 +9,28 @@ export function getjsScript() {
             // 页面加载完成后初始化
             document.addEventListener('DOMContentLoaded', () => {
               // 绑定按钮事件
-              document.getElementById('btnAlert').addEventListener('click', () => {
-                // 向VS Code发送消息
+              document.getElementById('submit-btn').addEventListener('click', () => {
+                // 提交评论
+                const reason = document.getElementById('reason').value;
+                const solution = document.getElementById('solution').value;
+                const modules = document.getElementById('modules').value;
+                const commitPath = document.getElementById('commitPath').value;
                 vscode.postMessage({
-                  command: 'alert',
-                  text: 'Hello from the webview!'
+                  command: 'submit',
+                  data: {
+                    reason,
+                    solution,
+                    modules,
+                    commitPath
+                  }
                 });
               });
     
-              document.getElementById('btnEcho').addEventListener('click', () => {
-                const inputText = document.getElementById('textInput').value || 'Empty text';
-                
-                // 向VS Code发送消息
+              document.getElementById('cancel-btn').addEventListener('click', () => {
+                console.log('cancel');
+                // 主动关闭
                 vscode.postMessage({
-                  command: 'echo',
-                  text: inputText
+                  command: 'cancel'
                 });
               });
     
