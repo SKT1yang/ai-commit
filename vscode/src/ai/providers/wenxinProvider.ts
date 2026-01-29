@@ -70,7 +70,9 @@ export class WenxinProvider extends BaseProvider {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`${PROVIDER_NAMES.WENXIN} API错误: ${response.status} ${errorData}`);
+        throw new Error(
+          `${PROVIDER_NAMES.WENXIN} API错误: ${response.status} ${errorData}`,
+        );
       }
 
       const data = (await response.json()) as {
@@ -80,7 +82,9 @@ export class WenxinProvider extends BaseProvider {
       };
 
       if (data.error_code) {
-        throw new Error(`${PROVIDER_NAMES.WENXIN} API错误: ${data.error_msg || "未知错误"}`);
+        throw new Error(
+          `${PROVIDER_NAMES.WENXIN} API错误: ${data.error_msg || "未知错误"}`,
+        );
       }
 
       if (!data.result) {
@@ -88,10 +92,23 @@ export class WenxinProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(data.result.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
+      return enforceConventionalCommit(
+        raw,
+        changedFiles,
+        diff,
+        options?.zendaoInfo,
+      );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.WENXIN);
     }
+  }
+
+  async generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    throw new Error("Method not implemented.");
   }
 
   private async getAccessToken(): Promise<string> {

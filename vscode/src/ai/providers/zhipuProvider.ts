@@ -58,7 +58,9 @@ export class ZhipuProvider extends BaseProvider {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`${PROVIDER_NAMES.ZHIPU} API错误: ${response.status} ${errorData}`);
+        throw new Error(
+          `${PROVIDER_NAMES.ZHIPU} API错误: ${response.status} ${errorData}`,
+        );
       }
 
       const data = (await response.json()) as {
@@ -85,9 +87,22 @@ export class ZhipuProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(content.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
+      return enforceConventionalCommit(
+        raw,
+        changedFiles,
+        diff,
+        options?.zendaoInfo,
+      );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.ZHIPU);
     }
+  }
+
+  async generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    throw new Error("Method not implemented.");
   }
 }

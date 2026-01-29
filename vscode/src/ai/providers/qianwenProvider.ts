@@ -62,7 +62,9 @@ export class QianwenProvider extends BaseProvider {
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`${PROVIDER_NAMES.QIANWEN} API错误: ${response.status} ${errorData}`);
+        throw new Error(
+          `${PROVIDER_NAMES.QIANWEN} API错误: ${response.status} ${errorData}`,
+        );
       }
 
       const data = (await response.json()) as {
@@ -75,7 +77,9 @@ export class QianwenProvider extends BaseProvider {
       };
 
       if (data.code && data.code !== "200") {
-        throw new Error(`${PROVIDER_NAMES.QIANWEN} API错误: ${data.message || "未知错误"}`);
+        throw new Error(
+          `${PROVIDER_NAMES.QIANWEN} API错误: ${data.message || "未知错误"}`,
+        );
       }
 
       let content = "";
@@ -96,10 +100,17 @@ export class QianwenProvider extends BaseProvider {
         extractCommitMessage(content),
         changedFiles,
         diff,
-        options?.zendaoInfo
+        options?.zendaoInfo,
       );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.QIANWEN);
     }
+  }
+  async generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    throw new Error("Method not implemented.");
   }
 }

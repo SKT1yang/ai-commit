@@ -184,24 +184,33 @@ async function handleGenerateZendaoCommitMessage() {
         return;
       }
 
-      const selection = await vscode.window.showQuickPick([
-        {
-          label: "$(check)提交禅道评论",
-          description: "提交前自动执行commit",
-          action: "comment",
-        },
-        {
-          label: "$(close)取消",
-          description: "",
-          action: "cancel",
-        },
-      ]);
+      const config = vscode.workspace.getConfiguration("aiMessage");
+      const autoComment = config.get("zendao.autoComment", false);
+      let action = "cancel";
 
-      if (!selection) {
-        return;
+      if (autoComment) {
+        // 自动提交禅道评论, 无需手动选择
+        action = "comment";
+      } else {
+        const selection = await vscode.window.showQuickPick([
+          {
+            label: "$(check)提交禅道评论",
+            description: "提交前自动执行commit",
+            action: "comment",
+          },
+          {
+            label: "$(close)取消",
+            description: "",
+            action: "cancel",
+          },
+        ]);
+        if (!selection) {
+          return;
+        }
+        action = selection.action;
       }
 
-      switch (selection.action) {
+      switch (action) {
         case "comment":
           if (!vcsService) {
             throw new Error("版本控制服务未初始化");
@@ -220,7 +229,7 @@ async function handleGenerateZendaoCommitMessage() {
 
           try {
             const formatted = await aiService.generateBugReason(
-              response.changes || '',
+              response.changes || "",
               response.changedFiles,
               {
                 zendaoInfo,

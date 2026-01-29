@@ -77,9 +77,22 @@ export class OllamaProvider extends BaseProvider {
       }
 
       const raw = extractCommitMessage(data.response.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
+      return enforceConventionalCommit(
+        raw,
+        changedFiles,
+        diff,
+        options?.zendaoInfo,
+      );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.OLLAMA);
     }
+  }
+
+  async generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    throw new Error("Method not implemented.");
   }
 }
