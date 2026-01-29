@@ -26,6 +26,7 @@ export class GitService implements IVersionControlService {
    */
   private resolveWorkspaceRoot(): string {
     const folders = vscode.workspace.workspaceFolders;
+    console.log("GitService 获取工作区根目录:", folders);
     if (!folders || folders.length === 0) {
       return "";
     }
@@ -97,7 +98,7 @@ export class GitService implements IVersionControlService {
 
     try {
       const { stdout } = await execAsync(
-        `"${this.gitPath}" rev-parse --is-inside-work-tree`,
+        `${this.gitPath} rev-parse --is-inside-work-tree`,
         { cwd: this.workspaceRoot },
       );
       const isGitRepo = stdout.trim() === "true";

@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { getCssStyle } from "./css";
-import { getjsScript } from "./javascript";
+import { getjsScript, originaBtnlText } from "./javascript";
 import { ZendaoInfo } from "../zendao/zendaoInterface";
 import { ZendaoService } from "../zendao/zentaoService";
 import { getCommentHtmlString } from "./html";
@@ -166,7 +166,7 @@ export class WebviewPanel {
                 required
               >${this.zendaoInfo?.comment?.commitUrl}</textarea>
               <button class="primary" type="submit" id="submit-btn">
-                提交评论
+                ${originaBtnlText}
               </button>
               <button id="cancel-btn">取消</button>
             </div>

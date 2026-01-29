@@ -1,3 +1,4 @@
+export const originaBtnlText = "提交评论";
 export function getjsScript() {
   const jsScript = `
 (function () {
@@ -8,7 +9,7 @@ export function getjsScript() {
 
   // 页面加载完成后初始化
   document.addEventListener("DOMContentLoaded", () => {
-    const originalText = submitBtn.textContent;
+    
     // 绑定按钮事件
     document.getElementById("submit-btn").addEventListener("click", () => {
       // 提交评论
@@ -16,7 +17,7 @@ export function getjsScript() {
       const solution = document.getElementById("solution").value;
       const modules = document.getElementById("modules").value;
       const commitPath = document.getElementById("commitPath").value;
-      
+
       // 显示提交按钮的loading状态
       const submitBtn = document.getElementById("submit-btn");
       submitBtn.disabled = true;
@@ -50,11 +51,7 @@ export function getjsScript() {
           // 恢复提交按钮的状态
           const submitBtn = document.getElementById("submit-btn");
           submitBtn.disabled = false;
-          if (originalText) {
-            submitBtn.textContent = originalText;
-          } else {
-            submitBtn.textContent = "提交评论";
-          }
+          submitBtn.textContent = ${originaBtnlText};
           break;
       }
     });
