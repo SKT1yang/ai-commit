@@ -1,4 +1,4 @@
-import { AIProvider, AIConfig,GenerateOptions } from "../aiInterface";
+import { AIProvider, AIConfig, GenerateOptions } from "../aiInterface";
 import { SvnFile } from "../../vcs/svnService";
 
 export abstract class BaseProvider implements AIProvider {
@@ -12,6 +12,12 @@ export abstract class BaseProvider implements AIProvider {
   abstract isAvailable(): Promise<boolean>;
 
   abstract generateCommitMessage(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string>;
+
+  abstract generateReason(
     diff: string,
     changedFiles: SvnFile[],
     options?: GenerateOptions,

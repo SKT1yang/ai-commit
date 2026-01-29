@@ -10,6 +10,7 @@ import type { ZendaoInfo } from "./zendao/zendaoInterface";
 import { outputChannel } from "./utils/outputChannel";
 import { isPositiveInteger } from "./utils";
 import { WebviewPanel } from "./webviews/WebviewPanel";
+import { SvnFile } from "./vcs/svnService";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -62,7 +63,7 @@ function registerCommands(context: vscode.ExtensionContext) {
 
 async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
   try {
-    await unifiedGenerateCommit(zendaoInfo);
+    return await unifiedGenerateCommit(zendaoInfo);
   } catch (error) {
     await handleError("生成提交信息时发生错误", error);
   }
@@ -70,6 +71,15 @@ async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
 
 // 统一的提交信息生成流程（带流式 & 回退 & 格式化）
 async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
+  const result: {
+    success: boolean;
+    changes: string | null;
+    changedFiles: SvnFile[];
+  } = {
+    success: false,
+    changes: "",
+    changedFiles: [],
+  };
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -85,6 +95,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
 
       progress.report({ increment: 20, message: "收集变更..." });
       const changes = await getVcsChanges();
+      result.changes = changes;
       if (!changes) {
         return;
       }
@@ -92,6 +103,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
       // 获取待提交文件列表（排除ignore）
       const status = await vcsService!.getCommitReadyChanges();
       const changedFiles = status.changedFiles;
+      result.changedFiles = changedFiles;
 
       const initMsg = "🤖 正在分析 " + changedFiles.length + " 个文件变更...";
       const scmWritable = await setScmInputBoxValue(initMsg);
@@ -126,12 +138,15 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
           vscode.window.showErrorMessage("无法生成提交信息");
         }
         progress.report({ increment: 100, message: "完成" });
+        result.success = true;
         vscode.window.showInformationMessage("✅ 提交信息已生成");
       } catch (e) {
         await handleError("生成提交信息", e);
       }
     },
   );
+
+  return result;
 }
 
 // ====================================================================================
@@ -159,7 +174,15 @@ async function handleGenerateZendaoCommitMessage() {
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
-      await handleGenerateCommitMessage(zendaoInfo);
+      const response = await handleGenerateCommitMessage(zendaoInfo);
+
+      if (!response) {
+        return;
+      }
+
+      if (!response.success) {
+        return;
+      }
 
       const selection = await vscode.window.showQuickPick([
         {
@@ -195,6 +218,22 @@ async function handleGenerateZendaoCommitMessage() {
             };
           }
 
+          try {
+            const formatted = await aiService.generateBugReason(
+              response.changes || '',
+              response.changedFiles,
+              {
+                zendaoInfo,
+              },
+            );
+            outputChannel.appendLine(
+              `[AI-Message] bug reason formated: ${formatted} / ${typeof formatted}`,
+            );
+            zendaoInfo.comment.reason = formatted;
+          } catch (e) {
+            await handleError("bug reason ", e);
+          }
+
           outputChannel.appendLine(
             `[Zendao] 禅道评论信息 ${JSON.stringify(zendaoInfo.comment)}`,
           );
@@ -204,7 +243,9 @@ async function handleGenerateZendaoCommitMessage() {
           const urlObj = await vcsService.getRemoteUrl();
 
           outputChannel.appendLine(`[Zendao] 提交成功, hash: ${hash}`);
-          outputChannel.appendLine(`[Zendao] 提交地址 ${typeof urlObj === "object" ? JSON.stringify(urlObj) : ''}`);
+          outputChannel.appendLine(
+            `[Zendao] 提交地址 ${typeof urlObj === "object" ? JSON.stringify(urlObj) : ""}`,
+          );
 
           if (
             urlObj &&

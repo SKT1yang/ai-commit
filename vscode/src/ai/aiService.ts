@@ -136,6 +136,28 @@ export class AIService {
     }
   }
 
+    /**
+   * 生成提交信息
+   */
+  async generateBugReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    await this.ensureProviderAvailable();
+
+    try {
+      return await this.provider!.generateReason(
+        diff,
+        changedFiles,
+        options,
+      );
+    } catch (error) {
+      outputChannel.appendLine(`[AI Service generateBugReason] AI提供商 ${this.provider!.name} 错误`);
+      return '';
+    }
+  }
+
   /**
    * 尽可能找出支持流式生成的提供者
    */

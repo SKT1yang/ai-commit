@@ -46,7 +46,7 @@ const buildPromptByChinese: BuildPromptFunction = (
 
 你是一个专业的代码提交信息生成专家。请根据代码变更生成一条符合 Conventional Commits 规范的提交信息
 
-**CRITICAL INSTRUCTION: 您必须严格遵循以下要求**
+ CRITICAL INSTRUCTION: 您必须严格遵循以下要求 
 
 1. 仅输出符合Conventional Commits规范的${language}提交信息
 2. 使用标准的 \`<emoji><type>(<scope>): <subject>\` 格式
@@ -64,15 +64,15 @@ const buildPromptByChinese: BuildPromptFunction = (
 
 ## 必须执行的操作 (MUST DO)
 
-1. **深度分析变更意图**: 根据文件路径、文件名、内容和差异代码，确定这次提交的真实意图
-2. **识别修改模块**: 明确标识被修改的模块/文件
-3. **确定变更类型**: 基于实际变更内容选择最合适的提交类型
-4. **评估影响范围**: 考虑对现有逻辑、数据结构或外部API的影响
-5. **识别风险和依赖**: 确定是否需要额外的文档、测试或存在潜在风险
-6. **限制语言**: 所有内容均使用${language}，仅在 scope 和技术术语中使用英语
-7. **限制格式**: 严格遵循示例所示的格式模板
-8. **限制表情符号**: 包含适当的emoji表情符号
-9. **保证每个文件一个提交信息**: 为每个文件创建单独的提交信息
+1.  深度分析变更意图 : 根据文件路径、文件名、内容和差异代码，确定这次提交的真实意图
+2.  识别修改模块 : 明确标识被修改的模块/文件
+3.  确定变更类型 : 基于实际变更内容选择最合适的提交类型
+4.  评估影响范围 : 考虑对现有逻辑、数据结构或外部API的影响
+5.  识别风险和依赖 : 确定是否需要额外的文档、测试或存在潜在风险
+6.  限制语言 : 所有内容均使用${language}，仅在 scope 和技术术语中使用英语
+7.  限制格式 : 严格遵循示例所示的格式模板
+8.  限制表情符号 : 包含适当的emoji表情符号
+9.  保证每个文件一个提交信息 : 为每个文件创建单独的提交信息
 
 ## 禁止操作 (MUST NOT DO)
 
@@ -87,9 +87,9 @@ const buildPromptByChinese: BuildPromptFunction = (
 
 ### 格式模板
 
-**标准格式**: \`<emoji><type>(<scope>): <subject>\`
+ 标准格式 : \`<emoji><type>(<scope>): <subject>\`
 
-**带详细说明的格式**:
+ 带详细说明的格式 :
 \`\`\`
 <emoji><type>(<scope>): <subject>
 
@@ -139,7 +139,7 @@ const buildPromptByChinese: BuildPromptFunction = (
 ### 文件状态分类
 请分析文件变更——包括文件路径、文件名、文件内容和差异代码片段——并确定此次提交的目的。
 然后，根据变更的实际意图从类型参考列表中选择最合适的提交类型（type），而不仅仅是基于文件扩展名或文件名。
-提交类型必须反映变更的**真实目的**。
+提交类型必须反映变更的 真实目的 。
 
 ## 变更文件信息 (${changedFiles.length}个文件)
 
@@ -203,7 +203,72 @@ ${getEmojiByText("test")} refactor(user): 重构用户配置模块提高可读�
 `;
 };
 
-/**
+export const buildBugReasonPrompt: BuildPromptFunction = (
+  diff,
+  changedFiles,
+  options,
+) => {
+  outputChannel.appendLine(
+    `[${new Date().toLocaleString()}] 获取bug reason中文提示词`,
+  );
+  const { zendaoInfo, language = "中文" } = options || {};
+
+  // 分析文件类型和变更类型
+  const fileAnalysis = analyzeChanges(changedFiles);
+  const filesDescription = buildFileDescriptionPrompt(changedFiles);
+
+  const diffPropmt = buildDiffPropmt(diff, changedFiles);
+  const zendaoPrompt = zendaoInfo ? buildZendaoPropmt(zendaoInfo) : "";
+
+  return `# BUG Reason Generator
+
+ 角色与任务：   
+你是一个专业的BUG问题分析专家，擅长从代码变更和问题描述中定位根本原因。你的任务是根据提供的禅道BUG信息和相关代码变更，分析并输出清晰的BUG问题原因描述。
+
+## 变更文件信息 (${changedFiles.length}个文件)
+
+${filesDescription}
+
+## 变更分析:
+
+${fileAnalysis}
+
+${diffPropmt}
+
+${zendaoPrompt}  
+
+ 输入信息格式：   
+1.  禅道BUG信息 （包括但不限于）：  
+   - BUG标题与描述 
+   - 复现步骤
+   - 期望结果与实际结果  
+   - 环境信息（如操作系统、浏览器、版本等）
+
+2.  提交的代码变更 （如Git Diff或修改概述）  
+   - 修改的文件及具体代码行  
+   - 相关功能模块说明  
+
+ 输出要求：   
+- 必须用${language}描述
+- 语言简洁、逻辑清晰，避免技术模糊表述  
+- 按以下结构组织回答：  
+  1.  问题根源 （直接原因，如逻辑错误、条件遗漏、兼容性问题等）  
+  2.  触发场景 （在何种操作或数据条件下触发）  
+  3.  关联代码说明 （指出具体代码变更与BUG的关联）  
+  4.  建议修复方向 （可选，简要说明如何修复或规避）  
+
+ 示例输出：   
+问题根源：用户提交表单时未对输入字段做空值校验，导致后端处理异常。  
+触发场景：当用户不填写必填字段直接提交时触发。  
+关联代码：userFormSubmit 函数中缺失 if (!value) return; 判断。  
+
+ 注意事项：   
+- 如信息不足，可请求补充关键细节（如错误日志、特定操作步骤等）  
+- 若为偶现BUG，可提出可能的原因假设并建议进一步排查方向  
+`;
+};
+
+/*
  * 获取文件状态的中文描述
  */
 function getStatusDescription(status: string): string {
@@ -221,7 +286,7 @@ function getStatusDescription(status: string): string {
   return statusMap[status] || status || "未知状态";
 }
 
-/**
+/*
  * 分析变更内容
  * @param changedFiles 变更的文件列表
  * @param diff 代码差异
@@ -245,7 +310,7 @@ function analyzeChanges(changedFiles: SvnFile[]): string {
     .map(([ext, files]) => `${getFileTypeDescription(ext)}: ${files.length}个`)
     .join(", ");
 
-  analysis.push(`**文件类型分布**: ${fileTypeAnalysis}`);
+  analysis.push(` 文件类型分布 : ${fileTypeAnalysis}`);
 
   // === 2. 变更操作统计 ===
   const statusCounts: { [key: string]: SvnFile[] } = {};
@@ -262,7 +327,7 @@ function analyzeChanges(changedFiles: SvnFile[]): string {
     )
     .join(", ");
 
-  analysis.push(`**变更操作**: ${statusAnalysis}`);
+  analysis.push(` 变更操作 : ${statusAnalysis}`);
 
   return analysis.join("\n");
 }
