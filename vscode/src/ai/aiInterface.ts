@@ -8,14 +8,21 @@ export interface AIProvider {
   generateCommitMessage(
     diff: string,
     changedFiles: SvnFile[],
-    options?: {
-      zendaoInfo?: ZendaoInfo;
-    },
+    options?: GenerateOptions,
   ): Promise<string>;
   generateCommitMessageWithStream?(
     diff: string,
     changedFiles: SvnFile[],
     options?: StreamGenerateOptions,
+  ): Promise<string>;
+
+  /**
+   * 生成bug 问题原因
+   */
+  generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
   ): Promise<string>;
 }
 

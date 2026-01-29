@@ -1,10 +1,10 @@
 import * as vscode from "vscode";
-import type { StreamGenerateOptions } from "../aiInterface";
+import type { GenerateOptions, StreamGenerateOptions } from "../aiInterface";
 import type { SvnFile } from "../../vcs/svnService";
 import { setScmInputBoxValue } from "../../utils/setScmInputBoxValue";
 import { BaseProvider } from "./baseProvider";
 import { PROVIDER_NAMES } from "../utils/constants";
-import { buildBasePrompt } from "../utils/buildPrompt";
+import { buildBasePrompt, buildBugReasonPrompt } from "../utils/buildPrompt";
 import { extractCommitMessage } from "../utils/extractCommitMessage";
 import { enforceConventionalCommit } from "../utils/enforceConventionalCommit";
 import { handleApiError } from "../utils/handleApiError";
@@ -66,7 +66,12 @@ export class CopilotProvider extends BaseProvider {
         result += fragment;
       }
       const raw = extractCommitMessage(result.trim());
-      return enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
+      return enforceConventionalCommit(
+        raw,
+        changedFiles,
+        diff,
+        options?.zendaoInfo,
+      );
     } catch (error) {
       handleApiError(error, PROVIDER_NAMES.COPILOT);
     }
@@ -169,7 +174,12 @@ export class CopilotProvider extends BaseProvider {
         }
         // 提取提交信息（去掉可能的前缀和格式）
         const raw = extractCommitMessage(result.trim());
-        const formatted = enforceConventionalCommit(raw, changedFiles, diff, options?.zendaoInfo);
+        const formatted = enforceConventionalCommit(
+          raw,
+          changedFiles,
+          diff,
+          options?.zendaoInfo,
+        );
         const finalOk = await setScmInputBoxValue(formatted);
         if (!finalOk && options?.fallbackToOutput) {
           outputChannel.show(true);
@@ -188,6 +198,30 @@ export class CopilotProvider extends BaseProvider {
       console.error(`${PROVIDER_NAMES.COPILOT}流式生成失败:`, error);
       throw error;
     }
+  }
+
+  async generateReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    let model = await this.getAvailableModel();
+
+    const prompt = buildBugReasonPrompt(diff, changedFiles, options);
+    const messages = [vscode.LanguageModelChatMessage.User(prompt)];
+
+    const response = await model.sendRequest(
+      messages,
+      {},
+      new vscode.CancellationTokenSource().token,
+    );
+
+    let result = "";
+    for await (const fragment of response.text) {
+      result += fragment;
+    }
+
+    return result;
   }
 
   private async getAvailableModel() {

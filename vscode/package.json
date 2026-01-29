@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.50",
+  "version": "0.0.12",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -43,7 +43,6 @@
     "multi-model"
   ],
   "extensionDependencies": [],
-  "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
@@ -133,6 +132,11 @@
         "mac": "cmd+alt+g"
       },
       {
+        "command": "ai-message.generateZendaoCommitMessage",
+        "key": "ctrl+alt+z",
+        "mac": "cmd+alt+z"
+      },
+      {
         "command": "ai-message.quickCommit",
         "key": "ctrl+alt+q",
         "mac": "cmd+alt+q"
@@ -159,7 +163,7 @@
             "使用智谱AI",
             "自定义 API 接口"
           ],
-          "default": "copilot",
+          "default": "custom",
           "description": "选择AI提供商",
           "order": 1
         },
@@ -240,19 +244,19 @@
         },
         "aiMessage.ai.customEndpoint": {
           "type": "string",
-          "default": "",
+          "default": "http://192.168.100.56:9902/v1/chat/completions",
           "description": "自定义 API 接口地址",
           "order": 11
         },
         "aiMessage.ai.customApiKey": {
           "type": "string",
-          "default": "",
+          "default": "EMPTY",
           "description": "自定义 API Key",
           "order": 12
         },
         "aiMessage.ai.customModel": {
           "type": "string",
-          "default": "",
+          "default": "qwen3-coder",
           "description": "自定义模型名称",
           "order": 13
         },
@@ -345,27 +349,33 @@
         },
         "aiMessage.zendao.host": {
           "type": "string",
-          "default": "",
+          "default": "192.168.100.80",
           "description": "可选：自定义禅道 主机地址（例如 192.168.100.80）",
           "order": 27
         },
         "aiMessage.zendao.account": {
           "type": "string",
-          "default": "",
+          "default": " AICommit",
           "description": "可选：自定义禅道 账号（例如 admin）",
           "order": 28
         },
         "aiMessage.zendao.password": {
           "type": "string",
-          "default": "",
+          "default": "GLsec@123z",
           "description": "可选：自定义禅道 密码（例如 123456）",
           "order": 29
         },
         "aiMessage.zendao.commitTemplate": {
           "type": "string",
-          "default": "",
+          "default": "[{zendaoType}: {zendaoId}][MSG: {zendaoDescription}]\n{message}",
           "description": "配置禅道提交信息模板 (可选，用 {message} 占位符代表AI生成的信息，{zendaoType}表示任务类型， {zendaoId}表示禅道编号， {zendaoDescription}表示禅道任务描述)",
           "order": 17
+        },
+        "aiMessage.zendao.autoComment": {
+          "type": "boolean",
+          "default": false,
+          "description": "启用ziandao自动评论（自动提交到禅道）, 自动完成 1. 生成提交信息 -> 2. commit代码到暂存区 -> 3. 生成comment -> 4. 提交评论道禅道",
+          "order": 26
         }
       }
     }
@@ -393,16 +403,17 @@
     "publish:pre": "vsce publish --pre-release"
   },
   "devDependencies": {
-    "@types/vscode": "1.104.0",
     "@types/mocha": "10.0.10",
     "@types/node": "25.0.10",
+    "@types/vscode": "1.104.0",
     "@typescript-eslint/eslint-plugin": "8.42.0",
     "@typescript-eslint/parser": "8.42.0",
-    "eslint": "9.34.0",
-    "esbuild": "0.25.9",
-    "npm-run-all": "4.1.5",
-    "typescript": "5.9.2",
     "@vscode/test-cli": "0.0.11",
-    "@vscode/test-electron": "2.5.2"
+    "@vscode/test-electron": "2.5.2",
+    "chokidar": "^5.0.0",
+    "esbuild": "0.25.9",
+    "eslint": "9.34.0",
+    "npm-run-all": "4.1.5",
+    "typescript": "5.9.2"
   }
 }

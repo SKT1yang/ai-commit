@@ -5,10 +5,12 @@ import { AIService } from "./ai/aiService";
 import { setScmInputBoxValue } from "./utils/setScmInputBoxValue";
 import { showCommitMessagePreview } from "./utils/showCommitMessagePreview";
 import { handleError } from "./utils/handleError";
-import { ZentaoService } from "./zendao/zentaoService";
+import { ZendaoService } from "./zendao/zentaoService";
 import type { ZendaoInfo } from "./zendao/zendaoInterface";
 import { outputChannel } from "./utils/outputChannel";
 import { isPositiveInteger } from "./utils";
+import { WebviewPanel } from "./webviews/WebviewPanel";
+import { SvnFile } from "./vcs/svnService";
 
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
@@ -61,7 +63,7 @@ function registerCommands(context: vscode.ExtensionContext) {
 
 async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
   try {
-    await unifiedGenerateCommit(zendaoInfo);
+    return await unifiedGenerateCommit(zendaoInfo);
   } catch (error) {
     await handleError("生成提交信息时发生错误", error);
   }
@@ -69,6 +71,15 @@ async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
 
 // 统一的提交信息生成流程（带流式 & 回退 & 格式化）
 async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
+  const result: {
+    success: boolean;
+    changes: string | null;
+    changedFiles: SvnFile[];
+  } = {
+    success: false,
+    changes: "",
+    changedFiles: [],
+  };
   await vscode.window.withProgress(
     {
       location: vscode.ProgressLocation.Notification,
@@ -84,6 +95,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
 
       progress.report({ increment: 20, message: "收集变更..." });
       const changes = await getVcsChanges();
+      result.changes = changes;
       if (!changes) {
         return;
       }
@@ -91,8 +103,8 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
       // 获取待提交文件列表（排除ignore）
       const status = await vcsService!.getCommitReadyChanges();
       const changedFiles = status.changedFiles;
+      result.changedFiles = changedFiles;
 
-      progress.report({ increment: 40, message: "准备流式..." });
       const initMsg = "🤖 正在分析 " + changedFiles.length + " 个文件变更...";
       const scmWritable = await setScmInputBoxValue(initMsg);
       const debug = vscode.workspace
@@ -102,19 +114,8 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
         console.log("[AI-Message] SCM输入框不可写，将使用输出通道");
       }
 
-      progress.report({ increment: 55, message: "模型流式生成中..." });
+      progress.report({ increment: 55, message: "提交信息生成中..." });
       try {
-        await aiService.generateCommitMessageWithStream(changes, changedFiles, {
-          progress,
-          fallbackToOutput: !scmWritable,
-          zendaoInfo,
-        });
-        progress.report({ increment: 100, message: "完成" });
-        vscode.window.showInformationMessage("✅ 提交信息已生成");
-      } catch (e) {
-        if (debug) {
-          console.error("[AI-Message] 流式生成失败，尝试普通生成", e);
-        }
         const formatted = await aiService.generateCommitMessage(
           changes,
           changedFiles,
@@ -125,18 +126,27 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
         outputChannel.appendLine(
           `[AI-Message] formatted value: ${formatted} / ${typeof formatted}`,
         );
+
+        if (zendaoInfo) {
+          zendaoInfo.commitMessage = formatted;
+        }
+
         if (formatted) {
           (await setScmInputBoxValue(formatted)) ||
             vscode.env.clipboard.writeText(formatted);
-          vscode.window.showInformationMessage(
-            "⚠️ 已使用非流式方式生成提交信息",
-          );
         } else {
           vscode.window.showErrorMessage("无法生成提交信息");
         }
+        progress.report({ increment: 100, message: "完成" });
+        result.success = true;
+        vscode.window.showInformationMessage("✅ 提交信息已生成");
+      } catch (e) {
+        await handleError("生成提交信息", e);
       }
     },
   );
+
+  return result;
 }
 
 // ====================================================================================
@@ -148,7 +158,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
 async function handleGenerateZendaoCommitMessage() {
   try {
     const idString = await vscode.window.showInputBox({
-      title: "请输入禅道Bug或任务编号",
+      title: "请输入禅道Bug编号",
       value: "",
       prompt: "输入编号后按回车生成提交信息",
       ignoreFocusOut: true,
@@ -159,13 +169,116 @@ async function handleGenerateZendaoCommitMessage() {
     }
 
     if (isPositiveInteger(idString)) {
-      const zendaoService = new ZentaoService();
+      const zendaoService = new ZendaoService();
       await zendaoService.login();
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
-      zendaoInfo.shouldProcessZendao = true;
-      handleGenerateCommitMessage(zendaoInfo);
+      const response = await handleGenerateCommitMessage(zendaoInfo);
+
+      if (!response) {
+        return;
+      }
+
+      if (!response.success) {
+        return;
+      }
+
+      const config = vscode.workspace.getConfiguration("aiMessage");
+      const autoComment = config.get("zendao.autoComment", false);
+      let action = "cancel";
+
+      if (autoComment) {
+        // 自动提交禅道评论, 无需手动选择
+        action = "comment";
+      } else {
+        const selection = await vscode.window.showQuickPick([
+          {
+            label: "$(check)提交禅道评论",
+            description: "提交前自动执行commit",
+            action: "comment",
+          },
+          {
+            label: "$(close)取消",
+            description: "",
+            action: "cancel",
+          },
+        ]);
+        if (!selection) {
+          return;
+        }
+        action = selection.action;
+      }
+
+      switch (action) {
+        case "comment":
+          if (!vcsService) {
+            throw new Error("版本控制服务未初始化");
+          }
+          if (!zendaoInfo.commitMessage) {
+            throw new Error("提交信息为空");
+          }
+          if (!zendaoInfo.comment) {
+            zendaoInfo.comment = {
+              reason: "",
+              solution: zendaoInfo?.commitMessageWithoutTemplate ?? "",
+              modules: zendaoInfo?.module ?? "",
+              commitUrl: "",
+            };
+          }
+
+          try {
+            const formatted = await aiService.generateBugReason(
+              response.changes || "",
+              response.changedFiles,
+              {
+                zendaoInfo,
+              },
+            );
+            outputChannel.appendLine(
+              `[AI-Message] bug reason formated: ${formatted} / ${typeof formatted}`,
+            );
+            zendaoInfo.comment.reason = formatted;
+          } catch (e) {
+            await handleError("bug reason ", e);
+          }
+
+          outputChannel.appendLine(
+            `[Zendao] 禅道评论信息 ${JSON.stringify(zendaoInfo.comment)}`,
+          );
+
+          // 执行提交
+          const hash = await vcsService?.commit(zendaoInfo.commitMessage);
+          const urlObj = await vcsService.getRemoteUrl();
+
+          outputChannel.appendLine(`[Zendao] 提交成功, hash: ${hash}`);
+          outputChannel.appendLine(
+            `[Zendao] 提交地址 ${typeof urlObj === "object" ? JSON.stringify(urlObj) : ""}`,
+          );
+
+          if (
+            urlObj &&
+            typeof urlObj === "object" &&
+            Object.values(urlObj).length > 0 &&
+            hash
+          ) {
+            let url = Object.values(urlObj)[0];
+            // https://github.com/user/repo.git -> https://github.com/user/repo
+            url = url.replace(/\.git$/, "") + "/commit/" + hash;
+            zendaoInfo.comment.commitUrl = url;
+          }
+
+          try {
+            const webviewPanel = WebviewPanel.getInstance(
+              zendaoInfo,
+              zendaoService,
+            );
+            await webviewPanel.show();
+          } catch (error) {
+            vscode.window.showErrorMessage(`Failed to open webview: ${error}`);
+          }
+          break;
+      }
     } else {
       outputChannel.appendLine(
         `[Zendao] 获取禅道信息失败,执行基础提交信息生成`,

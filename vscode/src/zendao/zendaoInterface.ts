@@ -134,8 +134,10 @@ export class ZendaoConfig {
 }
 
 export interface ZendaoInfo {
-  shouldProcessZendao: boolean; // 是否执行禅道逻辑
   prompt?: string; // 提示词
+  commitMessage?: string;
+  commitMessageWithoutTemplate?: string;
+  comment?: ZendaoComment;
 
   id?: string; // Bug ID 或任务 ID
   title?: string; // 标题
@@ -183,3 +185,10 @@ export interface ZendaoInfo {
 //     vscode.window.showInformationMessage('禅道配置已更新');
 //   }
 // });
+
+export interface ZendaoComment {
+  reason: string;
+  solution: string;
+  modules: string;
+  commitUrl: string;
+}

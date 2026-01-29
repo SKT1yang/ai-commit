@@ -2,7 +2,7 @@ import { ZendaoConfig, ZendaoInfo } from "./zendaoInterface";
 import { ZendaoResponse } from "./zendaoResponse";
 import { outputChannel } from "../utils/outputChannel";
 
-export class ZentaoService {
+export class ZendaoService {
   cookie: string;
   config: ZendaoConfig;
 
@@ -98,7 +98,6 @@ export class ZentaoService {
     }
 
     let zendaoInfo: ZendaoInfo = {
-      shouldProcessZendao: false,
       prompt: "",
 
       id: bug.id,
@@ -139,7 +138,6 @@ export class ZentaoService {
 
     try {
       const url = `http://${this.config.host}/bug-view-${bugId}.json`;
-
       outputChannel.appendLine(
         `[ZendaoService]: fetchBugInfo config: ${JSON.stringify(this.config)}`,
       );
@@ -172,6 +170,92 @@ export class ZentaoService {
     }
   }
 
+  async commentBug(bugId: string, comment: string) {
+    if (!(await this.config.validate())) {
+      throw new Error("Invalid configuration");
+    }
+
+    if (!bugId) {
+      throw new Error("Please provide a valid bug ID");
+    }
+
+    if (!this.cookie) {
+      throw new Error("Please call login() first");
+    }
+
+    const uid = await this.getUid(bugId);
+
+    try {
+      const url = `http://${this.config.host}/action-comment-bug-${bugId}.json`;
+      const body = new URLSearchParams({
+        comment,
+        uid,
+      });
+
+      outputChannel.appendLine(
+        `[ZendaoService]: 提交给禅道的评论数据 ${JSON.stringify(comment)}`,
+      );
+      const response: Response = await fetch(url, {
+        method: "POST",
+        headers: {
+          ...this.getHeaders(this.config.host),
+          "Content-Type": "application/x-www-form-urlencoded",
+          Referer: `http://${this.config.host}/action-comment-bug-${bugId}.html`,
+          Cookie: this.cookie,
+        },
+        body,
+      });
+
+      // 检查响应
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+    } catch (error) {
+      outputChannel.appendLine(`[Zendao] 提交禅道评论失败，错误 ${JSON.stringify(error)}`);
+      console.error("comment bug failed:", error);
+      throw error;
+    }
+  }
+
+  async getUid(bugId: string) {
+    if (!(await this.config.validate())) {
+      throw new Error("Invalid configuration");
+    }
+
+    if (!bugId) {
+      throw new Error("Please provide a valid bug ID");
+    }
+
+    if (!this.cookie) {
+      throw new Error("Please call login() first");
+    }
+
+    try {
+      const url = `http://${this.config.host}/bug-view-${bugId}.html`;
+
+      const response: Response = await fetch(url, {
+        method: "GET",
+        headers: {
+          ...this.getHeaders(this.config.host),
+          "Content-Type": "text/html; Language=UTF-8;charset=UTF-8",
+          Referer: `http://${this.config.host}/bug-view-${bugId}.html`,
+          Cookie: this.cookie,
+        }
+      });
+
+      // 检查响应
+      if (!response.ok) {
+        throw new Error(`Server error: ${response.status}`);
+      }
+
+      const html = await response.text();
+      return this.extractKuidFromHtml(html);
+    } catch (error) {
+      console.error("comment bug failed:", error);
+      throw error;
+    }
+  }
+
   // 解码中文
   private decodeChinese(obj: any): any {
     if (typeof obj === "string") {
@@ -196,6 +280,31 @@ export class ZentaoService {
     }
     return obj;
   }
+
+  extractKuidFromHtml(html: string): string {
+  // 尝试多种可能的kuid定义模式
+  const patterns = [
+    // var kuid = 'value'
+    /var\s+kuid\s*=\s*['"]([^'"]+)['"]/,
+    // let kuid = 'value'
+    /let\s+kuid\s*=\s*['"]([^'"]+)['"]/,
+    // const kuid = 'value'
+    /const\s+kuid\s*=\s*['"]([^'"]+)['"]/,
+    // kuid: 'value' (在对象中)
+    /kuid\s*:\s*['"]([^'"]+)['"]/,
+    // "kuid": "value" (在JSON中)
+    /["']kuid["']\s*:\s*["']([^"']+)["']/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = html.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
+  }
+  
+  throw new Error('kuid not found in HTML');
+}
 
   // 关闭会话
   closeSession() {

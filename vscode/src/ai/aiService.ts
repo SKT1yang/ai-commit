@@ -4,6 +4,7 @@ import { SvnFile } from "../vcs/svnService";
 import { AIProviderFactory } from "./aiProviderFactory";
 import { FALLBACK_PRIORITIES, CONFIG_KEYS } from "./utils/constants";
 import { outputChannel } from "../utils/outputChannel";
+import { getEmojiByText } from "../utils/emoji";
 
 export class AIService {
   private provider: AIProvider | null = null;
@@ -90,7 +91,7 @@ export class AIService {
         options,
       );
     } catch (error) {
-      outputChannel.appendLine(`[AI Service] AI提供商 ${this.provider!.name} 错误: ${error instanceof Error ? error.message : "未知错误"}`); 
+      outputChannel.appendLine(`[AI Service] AI提供商 ${this.provider!.name} 错误`); 
       console.error(`AI提供商 ${this.provider!.name} 生成失败:`, error);
       return await this.handleGenerationError(diff, changedFiles, options);
     }
@@ -132,6 +133,28 @@ export class AIService {
     } catch (error) {
       console.error("流式生成提交信息失败:", error);
       throw new Error(error instanceof Error ? error.message : "未知错误");
+    }
+  }
+
+    /**
+   * 生成提交信息
+   */
+  async generateBugReason(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    await this.ensureProviderAvailable();
+
+    try {
+      return await this.provider!.generateReason(
+        diff,
+        changedFiles,
+        options,
+      );
+    } catch (error) {
+      outputChannel.appendLine(`[AI Service generateBugReason] AI提供商 ${this.provider!.name} 错误`);
+      return '';
     }
   }
 
@@ -270,29 +293,29 @@ export class AIService {
     const operations = new Set(changedFiles.map((f) => f.status));
 
     if (fileTypes.has("md") || fileTypes.has("txt")) {
-      return { type: "docs", emoji: "📝", subject: "更新文档" };
+      return { type: "docs", emoji: getEmojiByText('docs'), subject: "更新文档" };
     }
 
     if (
       fileTypes.has("json") &&
       changedFiles.some((f) => f.path.includes("package.json"))
     ) {
-      return { type: "build", emoji: "📦", subject: "更新依赖配置" };
+      return { type: "build", emoji: getEmojiByText('build'), subject: "更新依赖配置" };
     }
 
     if (operations.has("A")) {
-      return { type: "feat", emoji: "✨", subject: "添加新功能" };
+      return { type: "feat", emoji: getEmojiByText('feat'), subject: "添加新功能" };
     }
 
     if (operations.has("D")) {
-      return { type: "chore", emoji: "🔧", subject: "删除文件" };
+      return { type: "chore", emoji: getEmojiByText('chore'), subject: "删除文件" };
     }
 
     if (operations.has("M")) {
-      return { type: "fix", emoji: "🐛", subject: "修复问题" };
+      return { type: "fix", emoji: getEmojiByText('fix'), subject: "修复问题" };
     }
 
-    return { type: "chore", emoji: "🔧", subject: "更新代码" };
+    return { type: "chore", emoji: getEmojiByText('chore'), subject: "更新代码" };
   }
 
   /**
