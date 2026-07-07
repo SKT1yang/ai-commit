@@ -69,6 +69,10 @@ export class SvnService implements IVersionControlService {
         return 'svn';
     }
 
+    getWorkingDirectory(): string {
+        return this.workspaceRoot;
+    }
+
     async isInRepository(): Promise<boolean> {
         return this.isInSvnRepository();
     }

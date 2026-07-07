@@ -11,8 +11,8 @@ export class GitService implements IVersionControlService {
     private workspaceRoot: string;
     private gitPath: string;
 
-    constructor() {
-        this.workspaceRoot = this.resolveWorkspaceRoot();
+    constructor(rootPath?: string) {
+        this.workspaceRoot = rootPath || this.resolveWorkspaceRoot();
         this.gitPath = this.resolveGitPath();
         console.log('GitService 初始化: 工作区根目录 =', this.workspaceRoot);
         console.log('GitService 初始化: 使用的 git 可执行文件 =', this.gitPath);
@@ -81,6 +81,10 @@ export class GitService implements IVersionControlService {
         return 'git';
     }
 
+    getWorkingDirectory(): string {
+        return this.workspaceRoot;
+    }
+
     /**
      * 检查 `workspaceRoot` 是否为一个 Git 仓库。
      * 使用 `git rev-parse --is-inside-work-tree` 命令检测。
@@ -94,14 +98,143 @@ export class GitService implements IVersionControlService {
 
         console.log(`Git检测: 检查目录 ${this.workspaceRoot}`);
 
+        // 1. 先检查当前 workspaceRoot 本身是否在 git 工作树中
+        if (await this.isGitDirectory(this.workspaceRoot)) {
+            // workspaceRoot 可能在某个仓库内部，规范化到真正的仓库根目录
+            const trueRoot = await this.findGitRoot(this.workspaceRoot);
+            if (trueRoot && trueRoot !== this.workspaceRoot) {
+                console.log(`Git检测: workspaceRoot 在仓库内部，修正根目录 ${this.workspaceRoot} → ${trueRoot}`);
+                this.workspaceRoot = trueRoot;
+            }
+            return true;
+        }
+
+        // 2. workspaceRoot 本身不是 git 仓库 —— 查找其直接子目录中的 git 仓库
+        const subRoot = await this.findSubRepository(this.workspaceRoot);
+        if (subRoot) {
+            console.log(`Git检测: workspaceRoot 本身不是 git 仓库，但在子目录发现仓库 → ${subRoot}`);
+            this.workspaceRoot = subRoot;
+            return true;
+        }
+
+        console.log('Git检测: 不是Git仓库或 git 命令不可用');
+        return false;
+    }
+
+    /**
+     * 判断指定目录是否在一个 Git 工作树内（执行 `git rev-parse --is-inside-work-tree`）。
+     */
+    private async isGitDirectory(dir: string): Promise<boolean> {
         try {
-            const { stdout } = await execAsync(`"${this.gitPath}" rev-parse --is-inside-work-tree`, { cwd: this.workspaceRoot });
-            const isGitRepo = stdout.trim() === 'true';
-            console.log('Git检测: git rev-parse 结果:', isGitRepo);
-            return isGitRepo;
-        } catch (error) {
-            console.log('Git检测: 不是Git仓库或 git 命令不可用:', error);
+            const { stdout } = await execAsync(
+                `"${this.gitPath}" rev-parse --is-inside-work-tree`,
+                { cwd: dir }
+            );
+            return stdout.trim() === 'true';
+        } catch {
             return false;
+        }
+    }
+
+    /**
+     * 给定一个在 git 工作树内的目录，返回真正的仓库根目录
+     * （执行 `git rev-parse --show-toplevel`）。失败返回 null。
+     */
+    private async findGitRoot(dir: string): Promise<string | null> {
+        try {
+            const { stdout } = await execAsync(
+                `"${this.gitPath}" rev-parse --show-toplevel`,
+                { cwd: dir }
+            );
+            return stdout.trim() || null;
+        } catch {
+            return null;
+        }
+    }
+
+    /**
+     * 查找 `root` 的直接子目录中是否存在 git 仓库。
+     * 返回第一个发现的仓库根目录；如果不存在则返回 null。
+     */
+    private async findSubRepository(root: string): Promise<string | null> {
+        try {
+            const entries = await fs.promises.readdir(root, { withFileTypes: true });
+            for (const entry of entries) {
+                if (!entry.isDirectory()) {
+                    continue;
+                }
+                const subDir = path.join(root, entry.name);
+                const dotGit = path.join(subDir, '.git');
+                try {
+                    if (fs.existsSync(dotGit)) {
+                        const trueRoot = await this.findGitRoot(subDir);
+                        if (trueRoot) {
+                            return trueRoot;
+                        }
+                    }
+                } catch {
+                    // 继续检查下一个子目录
+                }
+            }
+        } catch {
+            // 目录读取失败，返回 null
+        }
+        return null;
+    }
+
+    /**
+     * 静态方法：扫描所有工作区文件夹，返回发现的所有 git 仓库根目录。
+     * 覆盖多根工作区以及"根目录下有多个 git 文件夹"的场景。
+     * 去重并按字母顺序排序。
+     */
+    static async findAllRepoRoots(gitPathOverride?: string): Promise<string[]> {
+        const folders = vscode.workspace.workspaceFolders;
+        if (!folders || folders.length === 0) {
+            return [];
+        }
+
+        const svc = new GitService();
+        if (gitPathOverride) {
+            svc.gitPath = gitPathOverride;
+        }
+
+        const roots = new Set<string>();
+
+        for (const folder of folders) {
+            const folderPath = folder.uri.fsPath;
+
+            // 检查 workspaceFolder 本身是否在 git 工作树中
+            if (await svc.isGitDirectory(folderPath)) {
+                const trueRoot = await svc.findGitRoot(folderPath);
+                if (trueRoot) {
+                    roots.add(trueRoot);
+                }
+                continue;
+            }
+
+            // workspaceFolder 本身不是 git 仓库，扫描其子目录
+            const subRoot = await svc.findSubRepository(folderPath);
+            if (subRoot) {
+                roots.add(subRoot);
+            }
+        }
+
+        return [...roots].sort();
+    }
+
+    /**
+     * 静态方法：根据给定的文件路径，解析它所属的 git 仓库根目录。
+     * 用于精确 scoping 到用户当前操作的文件。失败返回 null。
+     */
+    static async resolveRepoForFile(filePath: string, gitPathOverride?: string): Promise<string | null> {
+        const svc = new GitService();
+        if (gitPathOverride) {
+            svc.gitPath = gitPathOverride;
+        }
+        try {
+            return await svc.findGitRoot(filePath);
+        } catch {
+            return null;
         }
     }
 

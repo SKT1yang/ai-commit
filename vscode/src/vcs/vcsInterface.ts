@@ -42,4 +42,10 @@ export interface IVersionControlService {
      * 获取版本控制系统类型
      */
     getVcsType(): 'git' | 'svn';
+
+    /**
+     * 返回当前服务绑定的仓库根目录（规范化的绝对路径）。
+     * 用于把 SCM 输入框写入精确定位到该仓库。
+     */
+    getWorkingDirectory(): string;
 }
