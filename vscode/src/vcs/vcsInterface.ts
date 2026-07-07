@@ -44,6 +44,12 @@ export interface IVersionControlService {
   getVcsType(): "git" | "svn";
 
   /**
+   * 返回当前服务绑定的仓库根目录（规范化的绝对路径）。
+   * 用于把 SCM 输入框写入精确定位到该仓库。
+   */
+  getWorkingDirectory(): string;
+
+  /**
    * 提交message并返回hash
    * @returns 提交的hash
    */

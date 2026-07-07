@@ -30,6 +30,7 @@ export interface StreamGenerateOptions {
   fallbackToOutput?: boolean; // 当SCM输入框不可写时，是否回退到输出通道
   zendaoInfo?: ZendaoInfo;
   progress: vscode.Progress<{ increment?: number; message?: string }>;
+  repoRoot?: string; // 目标仓库根目录，用于精确定位 SCM 输入框
 }
 
 export interface GenerateOptions {

@@ -131,7 +131,7 @@ export class CopilotProvider extends BaseProvider {
                 }`
               : "🤖 AI正在思考...";
 
-          const ok = await setScmInputBoxValue(displayText);
+          const ok = await setScmInputBoxValue(displayText, options?.repoRoot);
           if (debug && !ok && !options?.fallbackToOutput) {
             console.log(
               "[AI-Message][Stream] SCM写入失败但未启用fallbackToOutput",
@@ -180,7 +180,7 @@ export class CopilotProvider extends BaseProvider {
           diff,
           options?.zendaoInfo,
         );
-        const finalOk = await setScmInputBoxValue(formatted);
+        const finalOk = await setScmInputBoxValue(formatted, options?.repoRoot);
         if (!finalOk && options?.fallbackToOutput) {
           outputChannel.show(true);
           outputChannel.appendLine("\n=== 最终提交信息 ===");

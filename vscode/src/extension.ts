@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
-import { VcsFactory } from "./vcs/vcsFactory";
+import { GitService } from "./vcs/gitService";
+import { SvnService } from "./vcs/svnService";
 import { IVersionControlService } from "./vcs/vcsInterface";
 import { AIService } from "./ai/aiService";
 import { setScmInputBoxValue } from "./utils/setScmInputBoxValue";
@@ -12,6 +13,16 @@ import { isPositiveInteger } from "./utils";
 import { WebviewPanel } from "./webviews/WebviewPanel";
 import { SvnFile } from "./vcs/svnService";
 
+/**
+ * 每个已发现仓库根目录缓存一个 service 实例。
+ * 这样每个 repository 的按钮点击都会拿到属于自己仓库的 service。
+ */
+const services = new Map<string, IVersionControlService>();
+
+/**
+ * 当前仓库的 service（由最近一次 validateVcsRepository() 写入）。
+ * 保持对旧代码的兼容：其他模块通过 vcsService 访问"当前仓库"。
+ */
 let vcsService: IVersionControlService | null = null;
 let aiService: AIService;
 
@@ -27,19 +38,48 @@ function initializeServices() {
 }
 
 function registerCommands(context: vscode.ExtensionContext) {
+  // 仅用于诊断的日志：安全地打印参数类型与关键字段（避免 JSON 序列化炸掉整个命令）
+  const logArgsSafe = (label: string, args: ReadonlyArray<unknown>) => {
+    try {
+      const summary = args.map((a) => {
+        if (a === null || a === undefined) return String(a);
+        if (typeof a !== "object") return typeof a;
+        const obj = a as Record<string, unknown>;
+        const keys = Object.keys(obj).slice(0, 12);
+        const hasUri = "uri" in obj ? "uri=" + String(obj.uri) : "";
+        const hasRootUri = "rootUri" in obj ? "rootUri=" + String(obj.rootUri) : "";
+        return `{${keys.join(",")}} ${hasUri} ${hasRootUri}`;
+      });
+      const msg = `[AI-Message:ARGS] ${label}: count=${args.length} | ${summary.join(" | ")}`;
+      console.log(msg);
+      try { outputChannel.appendLine(msg); } catch { /* ignore */ }
+    } catch (e) {
+      console.log("[AI-Message:ARGS] " + label + ": <log failed " + e + ">");
+    }
+  };
+
   const generateCommand = vscode.commands.registerCommand(
     "ai-message.generateCommitMessage",
-    handleGenerateCommitMessage,
+    (...args) => {
+      logArgsSafe("generateCommitMessage", args);
+      return handleGenerateCommitMessage(args);
+    },
   );
 
   const zendaoCommand = vscode.commands.registerCommand(
     "ai-message.generateZendaoCommitMessage",
-    handleGenerateZendaoCommitMessage,
+    (...args) => {
+      logArgsSafe("generateZendaoCommitMessage", args);
+      return handleGenerateZendaoCommitMessage(args);
+    },
   );
 
   const quickCommand = vscode.commands.registerCommand(
     "ai-message.quickCommit",
-    handleQuickCommit,
+    (...args) => {
+      logArgsSafe("quickCommit", args);
+      return handleQuickCommit(args);
+    },
   );
 
   const configureCommand = vscode.commands.registerCommand(
@@ -61,16 +101,27 @@ function registerCommands(context: vscode.ExtensionContext) {
 // handleGenerateCommitMessage
 // ====================================================================================
 
-async function handleGenerateCommitMessage(zendaoInfo?: ZendaoInfo) {
+async function handleGenerateCommitMessage(
+  cmdArgs: ReadonlyArray<unknown>,
+  zendaoInfo?: ZendaoInfo,
+) {
   try {
-    return await unifiedGenerateCommit(zendaoInfo);
+    return await unifiedGenerateCommit(cmdArgs, zendaoInfo);
   } catch (error) {
     await handleError("生成提交信息时发生错误", error);
   }
 }
 
-// 统一的提交信息生成流程（带流式 & 回退 & 格式化）
-async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
+/**
+ * 统一的提交信息生成流程（带流式 & 回退 & 格式化）。
+ *
+ * @param cmdArgs VSCode 命令透传的参数（包含 SCM 按钮的 rootUri）
+ * @param zendaoInfo 可选的禅道任务信息
+ */
+async function unifiedGenerateCommit(
+  cmdArgs: ReadonlyArray<unknown>,
+  zendaoInfo?: ZendaoInfo,
+) {
   const result: {
     success: boolean;
     changes: string | null;
@@ -88,7 +139,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
     },
     async (progress) => {
       progress.report({ increment: 0, message: "检查仓库..." });
-      const vcs = await validateVcsRepository();
+      const vcs = await validateVcsRepository(cmdArgs);
       if (!vcs) {
         return;
       }
@@ -106,7 +157,8 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
       result.changedFiles = changedFiles;
 
       const initMsg = "🤖 正在分析 " + changedFiles.length + " 个文件变更...";
-      const scmWritable = await setScmInputBoxValue(initMsg);
+      const targetRepoRoot = vcsService!.getWorkingDirectory();
+      const scmWritable = await setScmInputBoxValue(initMsg, targetRepoRoot);
       const debug = vscode.workspace
         .getConfiguration("aiMessage")
         .get<boolean>("debug.enableStreamingLog", false);
@@ -132,7 +184,7 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
         }
 
         if (formatted) {
-          (await setScmInputBoxValue(formatted)) ||
+          (await setScmInputBoxValue(formatted, targetRepoRoot)) ||
             vscode.env.clipboard.writeText(formatted);
         } else {
           vscode.window.showErrorMessage("无法生成提交信息");
@@ -155,7 +207,9 @@ async function unifiedGenerateCommit(zendaoInfo?: ZendaoInfo) {
 // handleGenerateZendaoCommitMessage
 // ====================================================================================
 
-async function handleGenerateZendaoCommitMessage() {
+async function handleGenerateZendaoCommitMessage(
+  cmdArgs: ReadonlyArray<unknown>,
+) {
   try {
     const idString = await vscode.window.showInputBox({
       title: "请输入禅道Bug编号",
@@ -174,7 +228,7 @@ async function handleGenerateZendaoCommitMessage() {
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
-      const response = await handleGenerateCommitMessage(zendaoInfo);
+      const response = await handleGenerateCommitMessage(cmdArgs, zendaoInfo);
 
       if (!response) {
         return;
@@ -283,7 +337,7 @@ async function handleGenerateZendaoCommitMessage() {
       outputChannel.appendLine(
         `[Zendao] 获取禅道信息失败,执行基础提交信息生成`,
       );
-      handleGenerateCommitMessage();
+      handleGenerateCommitMessage(cmdArgs);
     }
   } catch (error) {
     await handleError("编辑提交信息时发生错误", error);
@@ -296,11 +350,11 @@ async function handleGenerateZendaoCommitMessage() {
 // handleQuickCommit 不走ai，直接根据变更生成简单提交信息
 // ====================================================================================
 
-async function handleQuickCommit() {
+async function handleQuickCommit(cmdArgs: ReadonlyArray<unknown>) {
   try {
     vscode.window.showInformationMessage("正在快速生成提交信息...");
 
-    const vcs = await validateVcsRepository();
+    const vcs = await validateVcsRepository(cmdArgs);
     if (!vcs) {
       return;
     }
@@ -315,8 +369,9 @@ async function handleQuickCommit() {
       return;
     }
 
-    // 尝试填充到SCM输入框，否则复制到剪贴板
-    const success = await setScmInputBoxValue(commitMessage);
+    // 精确填充到本次点击所对应仓库的 SCM 输入框，否则回退到剪贴板
+    const quickRepoRoot = vcs.getWorkingDirectory();
+    const success = await setScmInputBoxValue(commitMessage, quickRepoRoot);
 
     if (success) {
       vscode.window
@@ -493,10 +548,120 @@ async function testAIConnection() {
 // 多次使用的辅助函数
 // ====================================================================================
 
-async function validateVcsRepository(): Promise<IVersionControlService | null> {
+// ====================================================================================
+// 仓库解析（让每个仓库按钮精确作用于自己的仓库）
+// ====================================================================================
+
+/**
+ * 根据命令参数 / 活动编辑器，确定用户这次点击的是哪个仓库的根目录。
+ *
+ * 优先级：
+ *   1. 命令调用方传入的 sourceControl.rootUri（VSCode SCM 按钮会带上）
+ *   2. 活动编辑器所在的 git 仓库
+ *   3. 当前缓存的 services 中已有的任一仓库
+ *   4. 自动扫描所有工作区文件夹找到的全部仓库
+ *
+ * 返回仓库根目录字符串；如果无法确定则返回 null。
+ */
+async function resolveTargetRepoRoot(
+  args?: ReadonlyArray<unknown>,
+): Promise<string | null> {
+  // 1) 从命令参数中提取 SourceControl rootUri（VSCode SCM 按钮贡献点会传入）
+  if (args && args.length > 0) {
+    for (const arg of args) {
+      if (arg && typeof arg === "object" && "rootUri" in arg) {
+        const rootUri = (arg as { rootUri?: unknown }).rootUri;
+        if (rootUri && typeof rootUri === "object" && "fsPath" in rootUri) {
+          const fsPath = (rootUri as { fsPath?: string }).fsPath;
+          if (fsPath) {
+            const gitRoot = await GitService.resolveRepoForFile(fsPath);
+            if (gitRoot) {
+              return gitRoot;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 2) 根据活动编辑器定位
+  const activeUri = vscode.window.activeTextEditor?.document.uri;
+  if (activeUri) {
+    const gitRoot = await GitService.resolveRepoForFile(activeUri.fsPath);
+    if (gitRoot) {
+      return gitRoot;
+    }
+  }
+
+  // 3) 缓存中已有的仓库
+  if (services.size > 0) {
+    const firstRoot = services.keys().next().value;
+    if (firstRoot) {
+      return firstRoot;
+    }
+  }
+
+  // 4) 自动扫描所有工作区文件夹
+  const allRoots = await GitService.findAllRepoRoots();
+  if (allRoots.length === 1) {
+    return allRoots[0];
+  }
+  if (allRoots.length > 1) {
+    // 多仓库让用户选择
+    const pick = await vscode.window.showQuickPick(allRoots, {
+      placeHolder: "选择要用于本次提交的仓库",
+      matchOnDescription: false,
+    });
+    return pick ?? null;
+  }
+
+  return null;
+}
+
+/**
+ * 返回目标仓库的 service 实例（按需懒加载缓存）。
+ *
+ * @param repoRoot 仓库根目录
+ * @returns 针对该仓库的 version control service，找不到则返回 null
+ */
+async function getServiceForRepo(
+  repoRoot: string,
+): Promise<IVersionControlService | null> {
+  const cached = services.get(repoRoot);
+  if (cached) {
+    return cached;
+  }
+
+  // 尝试 Git
+  const gitSvc = new GitService(repoRoot);
+  if (await gitSvc.isInRepository()) {
+    services.set(repoRoot, gitSvc);
+    console.log(`[AI-Message] 缓存 Git 仓库: ${repoRoot}`);
+    return gitSvc;
+  }
+
+  // 尝试 SVN
+  const svnSvc = new SvnService();
+  if (await svnSvc.isInRepository()) {
+    services.set(repoRoot, svnSvc);
+    console.log(`[AI-Message] 缓存 SVN 仓库: ${repoRoot}`);
+    return svnSvc;
+  }
+
+  return null;
+}
+
+/**
+ * 校验仓库版本控制系统，并把 `vcsService` 指向本次点击对应的仓库 service。
+ *
+ * 根据命令参数 + 活动编辑器精确定位用户点击的是哪个仓库。
+ */
+async function validateVcsRepository(
+  args?: ReadonlyArray<unknown>,
+): Promise<IVersionControlService | null> {
   try {
-    vcsService = await VcsFactory.createService();
-    if (!vcsService) {
+    const repoRoot = await resolveTargetRepoRoot(args);
+    if (!repoRoot) {
       vscode.window
         .showErrorMessage(
           "当前工作区不是Git或SVN仓库，或版本控制工具不可用",
@@ -510,9 +675,25 @@ async function validateVcsRepository(): Promise<IVersionControlService | null> {
       return null;
     }
 
-    const vcsType = vcsService.getVcsType();
-    console.log(`检测到${vcsType.toUpperCase()}仓库`);
-    return vcsService;
+    const svc = await getServiceForRepo(repoRoot);
+    if (!svc) {
+      vscode.window
+        .showErrorMessage(
+          "无法初始化仓库的版本控制服务",
+          "了解更多",
+        )
+        .then((selection) => {
+          if (selection === "了解更多") {
+            vscode.env.openExternal(vscode.Uri.parse("https://git-scm.com/"));
+          }
+        });
+      return null;
+    }
+
+    vcsService = svc;
+    const vcsType = svc.getVcsType();
+    console.log(`[AI-Message] 检测到${vcsType.toUpperCase()}仓库: ${repoRoot}`);
+    return svc;
   } catch (error) {
     await handleError("验证版本控制仓库时发生错误", error);
     return null;
