@@ -4,7 +4,7 @@
  * @returns 如果是正整数或正整数字符串返回 true，否则返回 false
  */
 export function isPositiveInteger(value: unknown): boolean {
-  if (value == null) {
+  if (value === null) {
     return false;
   }
 
