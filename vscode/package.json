@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.14",
+  "version": "0.0.16",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -250,7 +250,7 @@
         },
         "aiMessage.ai.customEndpoint": {
           "type": "string",
-          "default": "http://192.168.100.56:9902/v1/chat/completions",
+          "default": "http://192.168.100.56:9901/v1/chat/completions",
           "description": "自定义 API 接口地址",
           "order": 11
         },
@@ -262,7 +262,7 @@
         },
         "aiMessage.ai.customModel": {
           "type": "string",
-          "default": "qwen3-coder",
+          "default": "qwen3.8-flash-next",
           "description": "自定义模型名称",
           "order": 13
         },
