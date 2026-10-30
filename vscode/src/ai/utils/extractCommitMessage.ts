@@ -39,7 +39,8 @@ export function extractCommitMessage(response: string): string {
   );
   const regex = new RegExp(`^.*?(?=${escapedPatterns.join("|")})`, "s");
 
-  cleaned.replace(regex, "");
+  // 剥离首个 emoji/type 之前的解释性前缀（如"以下是生成的提交信息："）
+  cleaned = cleaned.replace(regex, "");
 
   // 按行分割并过滤空行
   const lines = cleaned
@@ -51,8 +52,13 @@ export function extractCommitMessage(response: string): string {
     return `${getEmojiByText("feat")} feat(misc): 更新代码`;
   }
 
-  // 移除解释性文本和标题，但保留提交信息和body内容
+  // 移除解释性文本和标题，但保留提交信息和body内容。
+  // 注意：有效提交行不参与关键词过滤——subject 中含"生成/分析"等词属正常内容
+  // （如"添加生成BUG原因分析功能"），不能按解释性文本误杀
   const filteredLines = lines.filter((line) => {
+    if (isValidCommitLine(line)) {
+      return true;
+    }
     const lower = line.toLowerCase();
     return (
       !lower.includes("提交信息") &&

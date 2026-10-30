@@ -68,6 +68,13 @@ export interface AIConfig {
   customEndpoint?: string;
   customApiKey?: string;
   customModel?: string;
+
+  // 请求策略配置（超时按流程区分：思考型模型生成 commit 更慢）
+  commitTimeout?: number;
+  bugReasonTimeout?: number;
+  requestRetryCount?: number;
+  /** 是否在请求中携带关思考参数（服务端不支持时不应发送，避免 400） */
+  disableThinking?: boolean;
 }
 
 export interface APIResponse {

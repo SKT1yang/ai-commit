@@ -1,7 +1,8 @@
 import type { SvnFile } from "../../vcs/svnService";
 import type { ZendaoInfo } from "../../zendao/zendaoInterface";
+import { stripZendaoHtml } from "../../zendao/htmlToText";
 import { outputChannel } from "../../utils/outputChannel";
-import { MAX_DIFF_CHARS, MAX_DIFF_FILES } from "../utils/constants";
+import { MAX_DIFF_FILES, MAX_PROMPT_DIFF_CHARS } from "../utils/constants";
 import { getEmojiByText } from "../../utils/emoji";
 
 type BuildPromptFunction = (
@@ -20,11 +21,7 @@ export const buildBasePrompt: BuildPromptFunction = (
   changedFiles,
   options,
 ) => {
-  const result = buildPromptByChinese(diff, changedFiles, options);
-  if (options && options.zendaoInfo) {
-    options.zendaoInfo.prompt = result;
-  }
-  return result;
+  return buildPromptByChinese(diff, changedFiles, options);
 };
 
 const buildPromptByChinese: BuildPromptFunction = (
@@ -349,8 +346,11 @@ function getFileTypeDescription(ext: string): string {
 }
 
 function buildZendaoPropmt(zendaoInfo: ZendaoInfo) {
+  // 重现步骤/描述是禅道富文本，先转纯文本再注入，避免 HTML 标签噪声干扰模型
+  const steps = stripZendaoHtml(zendaoInfo.steps || "");
+  const description = stripZendaoHtml(zendaoInfo.description || "");
   return `## 禅道关联信息
-  
+
 缺陷ID: ${zendaoInfo.id}
 标题: ${zendaoInfo.title}
 状态: ${zendaoInfo.status}
@@ -363,16 +363,23 @@ function buildZendaoPropmt(zendaoInfo: ZendaoInfo) {
 优先级: ${zendaoInfo.priority}
 产品: ${zendaoInfo.product}
 模块: ${zendaoInfo.module}
-重现步骤: ${zendaoInfo.steps}
-描述: ${zendaoInfo.description}`;
+重现步骤: ${steps}
+描述: ${description}`;
 }
 
 function buildDiffPropmt(diff: string, changedFiles: SvnFile[]) {
+  // 超长时按行边界截断，避免半行 diff 干扰模型理解
+  let truncated = diff;
+  if (diff.length > MAX_PROMPT_DIFF_CHARS) {
+    const cut = diff.slice(0, MAX_PROMPT_DIFF_CHARS);
+    const lastBreak = cut.lastIndexOf("\n");
+    truncated = lastBreak > 0 ? cut.slice(0, lastBreak) : cut;
+  }
   return `## 代码差异
 
-${diff.length > MAX_DIFF_CHARS ? `代码差异过大, 只截取部分内容: \n` : ""}
+${truncated.length < diff.length ? `代码差异过大, 只截取部分内容: \n` : ""}
 \`\`\`diff
-${diff.length > MAX_DIFF_CHARS ? diff.slice(0, 9000) : diff}
+${truncated}
 \`\`\``;
 }
 

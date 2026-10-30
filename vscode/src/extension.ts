@@ -104,9 +104,10 @@ function registerCommands(context: vscode.ExtensionContext) {
 async function handleGenerateCommitMessage(
   cmdArgs: ReadonlyArray<unknown>,
   zendaoInfo?: ZendaoInfo,
+  onChangesReady?: (changes: string, changedFiles: SvnFile[]) => void,
 ) {
   try {
-    return await unifiedGenerateCommit(cmdArgs, zendaoInfo);
+    return await unifiedGenerateCommit(cmdArgs, zendaoInfo, onChangesReady);
   } catch (error) {
     await handleError("生成提交信息时发生错误", error);
   }
@@ -117,10 +118,13 @@ async function handleGenerateCommitMessage(
  *
  * @param cmdArgs VSCode 命令透传的参数（包含 SCM 按钮的 rootUri）
  * @param zendaoInfo 可选的禅道任务信息
+ * @param onChangesReady 可选回调：变更收集完成（AI 调用开始前）时触发，
+ *   供禅道流程并行发起 BUG 原因分析，两次 AI 调用不再串行等待
  */
 async function unifiedGenerateCommit(
   cmdArgs: ReadonlyArray<unknown>,
   zendaoInfo?: ZendaoInfo,
+  onChangesReady?: (changes: string, changedFiles: SvnFile[]) => void,
 ) {
   const result: {
     success: boolean;
@@ -155,6 +159,8 @@ async function unifiedGenerateCommit(
       const status = await vcsService!.getCommitReadyChanges();
       const changedFiles = status.changedFiles;
       result.changedFiles = changedFiles;
+      // 变更已就绪，通知外部（禅道流程据此并行发起 BUG 原因分析）
+      onChangesReady?.(changes, changedFiles);
 
       const initMsg = "🤖 正在分析 " + changedFiles.length + " 个文件变更...";
       const targetRepoRoot = vcsService!.getWorkingDirectory();
@@ -228,7 +234,27 @@ async function handleGenerateZendaoCommitMessage(
       const zendaoInfo = await zendaoService.buildZendaoInfo(
         parseInt(idString),
       );
-      const response = await handleGenerateCommitMessage(cmdArgs, zendaoInfo);
+
+      // BUG 原因分析与提交信息生成无数据依赖：变更收集完成即并行发起，
+      // 与提交信息的 AI 调用重叠执行。独立 catch，失败不传染提交主流程
+      let bugReasonPromise: Promise<string> | null = null;
+      const parallelAI = vscode.workspace
+        .getConfiguration("aiMessage")
+        .get<boolean>("zendao.parallelAI", true);
+      const startBugReason = (changes: string, changedFiles: SvnFile[]) => {
+        bugReasonPromise = aiService
+          .generateBugReason(changes, changedFiles, { zendaoInfo })
+          .catch((e) => {
+            outputChannel.appendLine(`[AI-Message] bug reason 生成失败: ${e}`);
+            return "BUG原因分析生成失败，请手动补充";
+          });
+      };
+
+      const response = await handleGenerateCommitMessage(
+        cmdArgs,
+        zendaoInfo,
+        parallelAI ? startBugReason : undefined,
+      );
 
       if (!response) {
         return;
@@ -282,13 +308,16 @@ async function handleGenerateZendaoCommitMessage(
           }
 
           try {
-            const formatted = await aiService.generateBugReason(
-              response.changes || "",
-              response.changedFiles,
-              {
-                zendaoInfo,
-              },
-            );
+            // 并行模式下复用已发起的请求，否则现场生成
+            const formatted = bugReasonPromise
+              ? await bugReasonPromise
+              : await aiService.generateBugReason(
+                  response.changes || "",
+                  response.changedFiles,
+                  {
+                    zendaoInfo,
+                  },
+                );
             outputChannel.appendLine(
               `[AI-Message] bug reason formated: ${formatted} / ${typeof formatted}`,
             );

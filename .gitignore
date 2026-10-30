@@ -2,6 +2,9 @@
 out/
 dist/
 
+# Benchmark artifacts
+.benchmark/
+
 # Dependencies
 node_modules/
 

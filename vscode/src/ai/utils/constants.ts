@@ -34,6 +34,10 @@ export const CONFIG_KEYS = {
     CUSTOM_ENDPOINT: "ai.customEndpoint",
     CUSTOM_API_KEY: "ai.customApiKey",
     CUSTOM_MODEL: "ai.customModel",
+    COMMIT_TIMEOUT: "ai.commitTimeout",
+    BUG_REASON_TIMEOUT: "ai.bugReasonTimeout",
+    REQUEST_RETRY_COUNT: "ai.requestRetryCount",
+    DISABLE_THINKING: "ai.disableThinking",
   },
   COMMIT: {
     ENABLE_EMOJI: "commit.enableEmoji",
@@ -45,3 +49,13 @@ export const CONFIG_KEYS = {
 
 export const MAX_DIFF_CHARS = 1024 * 200;
 export const MAX_DIFF_FILES = 1000;
+
+/**
+ * 进入 prompt 的 diff 截断长度（字符）。
+ * 注意与 MAX_DIFF_CHARS（收集阶段的总量上限）不同：
+ * prompt 层面远超本地模型的上下文承载，实际截断在 buildDiffPropmt 中生效
+ */
+export const MAX_PROMPT_DIFF_CHARS = 9000;
+
+/** 禅道重现步骤/描述注入 prompt 前的纯文本截断长度（字符） */
+export const MAX_ZENDAO_STEPS_CHARS = 2000;

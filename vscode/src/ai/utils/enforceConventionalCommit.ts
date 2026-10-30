@@ -159,19 +159,18 @@ export function enforceConventionalCommit(
     .replace(/{header}/g, finalHeader)
     .replace(/{body}/g, body);
 
-  if (zendaoInfo?.id) {
-    result = result.replace(/{zendaoId}/g, zendaoInfo.id);
-  }
-
-  if (zendaoInfo?.type) {
-    result = result.replace(/{zendaoType}/g, "BUG");
-  }
-
-  if (zendaoInfo?.description) {
-    result = result.replace(/{zendaoDescription}/g, zendaoInfo.description);
+  if (zendaoInfo) {
+    // {zendaoType} 是单据类型（当前仅支持 BUG），不依赖禅道 bug 的 type 分类字段，
+    // 否则分类为空（如 BUG #20009 未填分类）时占位符会原样泄漏到提交信息
+    result = result
+      .replace(/{zendaoType}/g, "BUG")
+      .replace(/{zendaoId}/g, zendaoInfo.id ?? "")
+      .replace(/{zendaoDescription}/g, zendaoInfo.description ?? "");
   }
 
   outputChannel.appendLine(`[DEBUG] Final commit message result: ${result}`);
+  // 兜底：任何因数据缺失未替换的禅道占位符，不残留到最终提交信息
+  result = result.replace(/\{zendao(?:Id|Type|Description)\}/g, "");
   if (zendaoInfo) {
     zendaoInfo.commitMessage = result;
   }

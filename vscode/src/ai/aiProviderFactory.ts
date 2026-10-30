@@ -86,6 +86,14 @@ export class AIProviderFactory {
       customEndpoint: config.get(CONFIG_KEYS.AI.CUSTOM_ENDPOINT, ""),
       customApiKey: config.get(CONFIG_KEYS.AI.CUSTOM_API_KEY, ""),
       customModel: config.get(CONFIG_KEYS.AI.CUSTOM_MODEL, ""),
+
+      // 请求策略配置
+      commitTimeout: config.get(CONFIG_KEYS.AI.COMMIT_TIMEOUT, 60000),
+      bugReasonTimeout: config.get(CONFIG_KEYS.AI.BUG_REASON_TIMEOUT, 60000),
+      requestRetryCount: config.get(CONFIG_KEYS.AI.REQUEST_RETRY_COUNT, 2),
+      // 实测默认开启：chat_template_kwargs 关思考后生成快约 6 倍且格式合规率更高；
+      // 不支持该参数的端点可在设置中关闭
+      disableThinking: config.get(CONFIG_KEYS.AI.DISABLE_THINKING, true),
     };
   }
 

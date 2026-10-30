@@ -2,7 +2,7 @@
   "name": "ai-message",
   "displayName": "AI-message",
   "description": "Generate intelligent commit messages using multiple AI providers (GitHub Copilot, Ollama, Qianwen, Wenxin, Zhipu) for Git and SVN repositories",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "publisher": "yangguodong",
   "repository": {
     "type": "git",
@@ -271,8 +271,38 @@
           "default": 30000,
           "minimum": 5000,
           "maximum": 120000,
-          "description": "API 请求超时时间（毫秒）",
+          "description": "API 请求超时时间（毫秒），生成提交信息/BUG原因分析的超时优先使用下方的分流程超时",
           "order": 14
+        },
+        "aiMessage.ai.commitTimeout": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "maximum": 300000,
+          "description": "生成提交信息的请求超时时间（毫秒）。思考型模型建议 ≥60000",
+          "order": 15
+        },
+        "aiMessage.ai.bugReasonTimeout": {
+          "type": "number",
+          "default": 60000,
+          "minimum": 5000,
+          "maximum": 300000,
+          "description": "BUG 原因分析的请求超时时间（毫秒）",
+          "order": 16
+        },
+        "aiMessage.ai.requestRetryCount": {
+          "type": "number",
+          "default": 2,
+          "minimum": 0,
+          "maximum": 5,
+          "description": "网络错误/HTTP 429/5xx 时的自动重试次数（超时与 4xx 不重试）",
+          "order": 17
+        },
+        "aiMessage.ai.disableThinking": {
+          "type": "boolean",
+          "default": true,
+          "description": "关闭思考型模型的思考模式（通过 chat_template_kwargs.enable_thinking:false，实测生成提速约 6 倍）。推理服务不支持该参数时请关闭本项",
+          "order": 18
         },
         "aiMessage.svn.path": {
           "type": "string",
@@ -382,6 +412,12 @@
           "default": false,
           "description": "启用ziandao自动评论（自动提交到禅道）, 自动完成 1. 生成提交信息 -> 2. commit代码到暂存区 -> 3. 生成comment -> 4. 提交评论道禅道",
           "order": 26
+        },
+        "aiMessage.zendao.parallelAI": {
+          "type": "boolean",
+          "default": true,
+          "description": "禅道流程中并行发起「提交信息」与「BUG原因分析」两次 AI 调用以缩短总耗时。若推理服务并发排队严重（单请求时延明显恶化），可关闭退回串行",
+          "order": 27
         }
       }
     }
@@ -403,6 +439,7 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint src",
     "test": "vscode-test",
+    "test:unit": "npm run compile-tests && node --test \"out/test/unit/*.test.js\"",
     "publish": "vsce publish",
     "publish:patch": "vsce publish patch",
     "publish:minor": "vsce publish minor",

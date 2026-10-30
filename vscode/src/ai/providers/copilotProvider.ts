@@ -8,6 +8,7 @@ import { buildBasePrompt, buildBugReasonPrompt } from "../utils/buildPrompt";
 import { extractCommitMessage } from "../utils/extractCommitMessage";
 import { enforceConventionalCommit } from "../utils/enforceConventionalCommit";
 import { handleApiError } from "../utils/handleApiError";
+import { cleanModelOutput } from "../utils/cleanModelOutput";
 import { outputChannel } from "../../utils/outputChannel";
 
 /**
@@ -65,7 +66,7 @@ export class CopilotProvider extends BaseProvider {
       for await (const fragment of response.text) {
         result += fragment;
       }
-      const raw = extractCommitMessage(result.trim());
+      const raw = extractCommitMessage(cleanModelOutput(result));
       return enforceConventionalCommit(
         raw,
         changedFiles,
@@ -172,8 +173,8 @@ export class CopilotProvider extends BaseProvider {
             `[AI-Message][Stream] 完成，总片段=${fragmentCount}, 总长度=${result.length}, 首字节(ms)=${ttfb}, 总耗时(ms)=${totalMs}`,
           );
         }
-        // 提取提交信息（去掉可能的前缀和格式）
-        const raw = extractCommitMessage(result.trim());
+        // 提取提交信息（去掉可能的前缀、思考内容和格式）
+        const raw = extractCommitMessage(cleanModelOutput(result));
         const formatted = enforceConventionalCommit(
           raw,
           changedFiles,
@@ -221,7 +222,7 @@ export class CopilotProvider extends BaseProvider {
       result += fragment;
     }
 
-    return result;
+    return cleanModelOutput(result);
   }
 
   private async getAvailableModel() {

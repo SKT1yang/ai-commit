@@ -11,6 +11,11 @@ export class AIService {
   private config: AIConfig;
   private isRefreshing: boolean = false;
   private configChangeTimer: NodeJS.Timeout | undefined;
+  /** BUG 原因生成失败时的占位文案，避免评论字段为空 */
+  private static readonly BUG_REASON_FALLBACK =
+    "BUG原因分析生成失败（AI服务暂不可用），请手动补充";
+  /** 上次 BUG 原因失败提示时间，用于限频弹窗 */
+  private lastReasonWarnTime = 0;
 
   constructor() {
     this.config = AIProviderFactory.getConfigFromSettings();
@@ -153,9 +158,52 @@ export class AIService {
         options,
       );
     } catch (error) {
-      outputChannel.appendLine(`[AI Service generateBugReason] AI提供商 ${this.provider!.name} 错误`);
-      return '';
+      outputChannel.appendLine(
+        `[AI Service generateBugReason] AI提供商 ${this.provider!.name} 错误: ${error}`,
+      );
+      console.error(`AI提供商 ${this.provider!.name} 生成BUG原因失败:`, error);
+      return await this.handleReasonGenerationError(diff, changedFiles, options);
     }
+  }
+
+  /**
+   * 处理BUG原因生成失败：尝试备用提供者，全部失败时返回占位文案并限频提示。
+   * 不再静默返回空串，保证禅道评论的"问题原因"字段不为空
+   */
+  private async handleReasonGenerationError(
+    diff: string,
+    changedFiles: SvnFile[],
+    options?: GenerateOptions,
+  ): Promise<string> {
+    // 尝试备用提供者（未实现 generateReason 的提供者会抛错，由 catch 跳过）
+    const fallbackProvider = await this.getFallbackProvider();
+    if (fallbackProvider) {
+      outputChannel.appendLine(
+        `[AI Service generateBugReason] 使用备用提供商: ${fallbackProvider.name}`,
+      );
+      try {
+        return await fallbackProvider.generateReason(
+          diff,
+          changedFiles,
+          options,
+        );
+      } catch (fallbackError) {
+        console.error("备用提供商生成BUG原因失败:", fallbackError);
+      }
+    }
+
+    outputChannel.appendLine(
+      "[AI Service generateBugReason] 所有提供商均失败，返回占位文案",
+    );
+    // 限频提示：autoComment 模式下避免反复打扰
+    const now = Date.now();
+    if (now - this.lastReasonWarnTime > 5 * 60 * 1000) {
+      this.lastReasonWarnTime = now;
+      vscode.window.showWarningMessage(
+        "BUG 原因分析生成失败，评论中将使用占位文案，请手动补充",
+      );
+    }
+    return AIService.BUG_REASON_FALLBACK;
   }
 
   /**
